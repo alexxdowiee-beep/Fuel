@@ -168,6 +168,7 @@
   input[type=text], input[type=number] { border: 1.5px solid var(--line); border-radius: var(--radius-sm); padding: 9px 10px; font-size: 14px; font-family: inherit; background: var(--bg); color:var(--ink); width:100%; }
   input[type=text]:focus, input[type=number]:focus { outline:none; border-color: var(--brand); }
   .remove-item { background:none; border:none; color: var(--ink-faint); font-size: 18px; cursor:pointer; padding:4px 6px; line-height:1; }
+  .examples { font-size: 12px; color: var(--ink-faint); line-height:1.5; }
 
   .day-card { background: var(--bg-raised); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
   .day-card .day-head { display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
@@ -179,11 +180,16 @@
   .day-entries.open { display:block; }
   .day-entries .e { display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0; color: var(--ink-soft); }
 
-  .saved-item { display:flex; align-items:center; gap:10px; padding: 12px 2px; border-bottom: 1px solid var(--line); }
+  .saved-item { display:flex; flex-direction:column; gap:9px; padding: 13px 2px; border-bottom: 1px solid var(--line); }
   .saved-item .info { flex:1; }
   .saved-item .name { font-weight:600; font-size:14.5px; }
   .saved-item .sub { font-size:12px; color: var(--ink-soft); margin-top:2px; }
-  .add-round { width:36px; height:36px; border-radius:50%; border:none; background: var(--brand-soft); color: var(--brand); font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .saved-item-controls { display:flex; align-items:center; gap:8px; }
+  .qty-stepper { display:flex; align-items:center; background: var(--bg); border:1.5px solid var(--line); border-radius:999px; flex-shrink:0; }
+  .qty-btn { width:30px; height:30px; border:none; background:none; color:var(--brand); font-size:17px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .qty-val { min-width:20px; text-align:center; font-weight:700; font-size:13.5px; }
+  .add-log-btn { flex:1; border:none; border-radius:999px; padding:9px 10px; font-size:12.5px; font-weight:700; background: var(--brand); color:#fff; cursor:pointer; }
+  @media (prefers-color-scheme: dark) { .add-log-btn { color:#12150F; } }
 
   nav.tabbar { position: fixed; left:0; right:0; bottom:0; z-index: 30; padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--bg-raised); border-top: 1px solid var(--line); }
   .tabbar-inner { max-width:520px; margin:0 auto; display:flex; }
@@ -263,6 +269,7 @@
 
     <section class="screen" id="screen-add">
       <div class="section-head" style="margin-top:18px;"><h2>Log food</h2><span class="hint">Add one or more items</span></div>
+      <div class="examples" style="margin:-4px 0 12px;">Enter values per serving — the servings field multiplies the total when you log it.</div>
       <div id="reviewArea"></div>
       <button class="btn ghost" id="addAnotherBtn" style="margin-top:4px;">+ Add another food</button>
       <button class="btn primary" id="saveReviewBtn" style="margin-top:14px;">Log to today</button>
@@ -366,6 +373,7 @@
     waterTarget: profile.waterTarget || 2000,
     days: store.get('days', {}),
     savedFoods: store.get('saved', []),
+    savedQty: {},
     pendingReviewItems: [],
     secondaryOpen: false,
   };
@@ -489,7 +497,7 @@
     $('moreToggleBtn').querySelector('span').textContent = state.secondaryOpen ? 'Fewer nutrients' : 'More nutrients';
   });
 
-  function blankItem() { return { name: '', quantity: '', calories: 0, protein: 0, fibre: 0, carbs: 0, fat: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0, _moreOpen: false }; }
+  function blankItem() { return { name: '', quantity: '', servings: 1, calories: 0, protein: 0, fibre: 0, carbs: 0, fat: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0, _moreOpen: false }; }
   function renderReview() {
     if (!state.pendingReviewItems.length) state.pendingReviewItems.push(blankItem());
     const area = $('reviewArea');
@@ -525,7 +533,10 @@
         <input type="text" data-field="name" value="${escapeHtml(it.name)}" placeholder="Food name">
         <button class="remove-item" title="Remove">✕</button>
       </div>
-      <input type="text" data-field="quantity" value="${escapeHtml(it.quantity)}" placeholder="Quantity, e.g. 2 slices">
+      <div class="field-row" style="margin-top:0;">
+        <input type="text" data-field="quantity" value="${escapeHtml(it.quantity)}" placeholder="Quantity, e.g. 1 slice" style="flex:2;min-width:110px;">
+        <div class="field" style="max-width:78px;"><label>Servings</label><input type="number" data-field="servings" value="${it.servings || 1}" min="1" step="1"></div>
+      </div>
       <div class="field-row">
         <div class="field"><label>Calories</label><input type="number" data-field="calories" value="${round(it.calories)}"></div>
         <div class="field"><label>Protein (g)</label><input type="number" data-field="protein" value="${round(it.protein)}"></div>
@@ -551,11 +562,15 @@
     const valid = state.pendingReviewItems.filter(it => it.name.trim());
     if (!valid.length) { toast('Add a food name first'); return; }
     const now = new Date().toISOString();
-    const entries = valid.map(it => ({ id: uid_(), name: it.name, quantity: it.quantity || '',
-      calories: Number(it.calories) || 0, protein: Number(it.protein) || 0, fibre: Number(it.fibre) || 0,
-      carbs: Number(it.carbs) || 0, fat: Number(it.fat) || 0, sugar: Number(it.sugar) || 0,
-      satFat: Number(it.satFat) || 0, sodium: Number(it.sodium) || 0, potassium: Number(it.potassium) || 0,
-      time: now, source: 'manual' }));
+    const entries = valid.map(it => {
+      const servings = Number(it.servings) || 1;
+      const qtyLabel = servings > 1 ? (it.quantity ? `${it.quantity} × ${servings}` : `× ${servings}`) : (it.quantity || '');
+      return { id: uid_(), name: it.name, quantity: qtyLabel,
+        calories: (Number(it.calories) || 0) * servings, protein: (Number(it.protein) || 0) * servings, fibre: (Number(it.fibre) || 0) * servings,
+        carbs: (Number(it.carbs) || 0) * servings, fat: (Number(it.fat) || 0) * servings, sugar: (Number(it.sugar) || 0) * servings,
+        satFat: (Number(it.satFat) || 0) * servings, sodium: (Number(it.sodium) || 0) * servings, potassium: (Number(it.potassium) || 0) * servings,
+        time: now, source: 'manual' };
+    });
     addEntries(entries);
     state.pendingReviewItems = [blankItem()];
     renderReview();
@@ -623,11 +638,15 @@
   function quickAdd(savedId) {
     const f = state.savedFoods.find(x => x.id === savedId);
     if (!f) return;
-    addEntries([{ id: uid_(), name: f.name, quantity: f.quantity || '', calories: f.calories || 0,
-      protein: f.protein || 0, fibre: f.fibre || 0, carbs: f.carbs || 0, fat: f.fat || 0,
-      sugar: f.sugar || 0, satFat: f.satFat || 0, sodium: f.sodium || 0, potassium: f.potassium || 0,
+    const qty = state.savedQty[savedId] || 1;
+    const qtyLabel = qty > 1 ? (f.quantity ? `${f.quantity} × ${qty}` : `× ${qty}`) : (f.quantity || '');
+    addEntries([{ id: uid_(), name: f.name, quantity: qtyLabel, calories: (f.calories || 0) * qty,
+      protein: (f.protein || 0) * qty, fibre: (f.fibre || 0) * qty, carbs: (f.carbs || 0) * qty, fat: (f.fat || 0) * qty,
+      sugar: (f.sugar || 0) * qty, satFat: (f.satFat || 0) * qty, sodium: (f.sodium || 0) * qty, potassium: (f.potassium || 0) * qty,
       time: new Date().toISOString(), source: 'saved' }]);
-    toast(f.name + ' added to today');
+    state.savedQty[savedId] = 1;
+    toast((qty > 1 ? qty + '× ' : '') + f.name + ' added to today');
+    renderSaved();
   }
   function deleteSavedFood(id) { state.savedFoods = state.savedFoods.filter(x => x.id !== id); saveSaved(); renderSaved(); }
   function renderSaved() {
@@ -636,14 +655,32 @@
       list.innerHTML = `<div class="empty-state"><div class="emoji">★</div><p>No saved foods yet.</p><p>Save a food from its edit screen to reuse it here.</p></div>`;
       return;
     }
-    list.innerHTML = state.savedFoods.map(f => `
+    list.innerHTML = state.savedFoods.map(f => {
+      const qty = state.savedQty[f.id] || 1;
+      return `
       <div class="saved-item">
         <div class="info"><div class="name">${escapeHtml(f.name)}</div>
-          <div class="sub">${f.quantity ? escapeHtml(f.quantity) + ' · ' : ''}${roundInt(f.calories)} kcal · P${round(f.protein)}g · Fibre ${round(f.fibre)}g</div>
+          <div class="sub">${f.quantity ? escapeHtml(f.quantity) + ' · ' : ''}${roundInt(f.calories)} kcal · P${round(f.protein)}g · Fibre ${round(f.fibre)}g <span style="color:var(--ink-faint);">(per 1)</span></div>
         </div>
-        <button class="add-round" data-add="${f.id}">+</button>
-        <button class="remove-item" data-del="${f.id}">✕</button>
-      </div>`).join('');
+        <div class="saved-item-controls">
+          <div class="qty-stepper">
+            <button class="qty-btn" type="button" data-minus="${f.id}">−</button>
+            <span class="qty-val">${qty}</span>
+            <button class="qty-btn" type="button" data-plus="${f.id}">+</button>
+          </div>
+          <button class="add-log-btn" type="button" data-add="${f.id}">Add · ${roundInt(f.calories * qty)} kcal</button>
+          <button class="remove-item" type="button" data-del="${f.id}">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-plus]').forEach(b => b.addEventListener('click', () => {
+      state.savedQty[b.dataset.plus] = (state.savedQty[b.dataset.plus] || 1) + 1;
+      renderSaved();
+    }));
+    list.querySelectorAll('[data-minus]').forEach(b => b.addEventListener('click', () => {
+      state.savedQty[b.dataset.minus] = Math.max(1, (state.savedQty[b.dataset.minus] || 1) - 1);
+      renderSaved();
+    }));
     list.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => quickAdd(b.dataset.add)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteSavedFood(b.dataset.del)));
   }
