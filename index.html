@@ -104,16 +104,37 @@
   .ring-meta .row b { font-weight:700; }
   .ring-meta button.edit-target { margin-top: 8px; background: rgba(255,255,255,0.16); border: none; color: inherit; font-size: 12px; padding: 6px 10px; border-radius: 999px; cursor:pointer; }
 
-  .macro-grid { display:grid; grid-template-columns: repeat(4,1fr); gap:10px; margin-top:16px; }
-  .macro-tile { background: var(--bg-raised); border-radius: var(--radius-md); padding: 12px 8px; text-align:center; box-shadow: var(--shadow); }
-  .macro-tile .dot { width:8px; height:8px; border-radius:50%; margin: 0 auto 6px; }
-  .macro-tile .val { font-family: var(--font-display); font-size: 19px; font-weight:600; }
-  .macro-tile .unit { font-size: 10px; color: var(--ink-faint); }
+  .primary-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:10px; margin-top:16px; }
+  .primary-tile { background: var(--bg-raised); border-radius: var(--radius-md); padding: 16px 10px; text-align:center; box-shadow: var(--shadow); }
+  .primary-tile .dot { width:9px; height:9px; border-radius:50%; margin: 0 auto 7px; }
+  .primary-tile .val { font-family: var(--font-display); font-size: 24px; font-weight:600; }
+  .primary-tile .unit { font-size: 11px; color: var(--ink-faint); margin-top:2px; }
 
-  .split-bar { display:flex; height: 10px; border-radius: 999px; overflow:hidden; margin-top: 14px; background: var(--line); }
-  .split-bar span { height:100%; }
-  .split-legend { display:flex; gap:14px; margin-top:8px; font-size: 11.5px; color: var(--ink-soft); flex-wrap:wrap; }
-  .split-legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle; }
+  .water-card { background: var(--bg-raised); border-radius: var(--radius-md); padding: 16px; margin-top:10px; box-shadow: var(--shadow); }
+  .water-head { display:flex; justify-content:space-between; align-items:baseline; }
+  .water-head .label { font-size:13px; font-weight:700; color: var(--ink-soft); }
+  .water-head .amt { font-family: var(--font-display); font-size:19px; font-weight:600; }
+  .water-head .amt span { font-size:12px; color: var(--ink-faint); font-weight:400; font-family: var(--font-body); }
+  .water-bar { height:8px; border-radius:999px; background: var(--line); margin-top:10px; overflow:hidden; }
+  .water-bar-fill { height:100%; background: var(--accent); border-radius:999px; transition: width .4s ease; }
+  .water-actions { display:flex; gap:8px; margin-top:12px; align-items:center; }
+  .water-btn { flex:1; border:none; border-radius:999px; padding:9px 6px; font-size:13px; font-weight:700; background: var(--brand-soft); color: var(--brand); cursor:pointer; }
+  .water-edit { background:none; border:none; color: var(--ink-faint); font-size:11.5px; text-decoration:underline; cursor:pointer; padding:4px 2px; white-space:nowrap; }
+
+  .more-toggle { display:flex; align-items:center; justify-content:center; gap:5px; width:100%; background:none; border:none; color: var(--ink-soft); font-size:12.5px; font-weight:700; padding:14px 4px 2px; cursor:pointer; }
+  .more-toggle .chev { transition: transform .2s ease; font-size:9px; display:inline-block; }
+  .more-toggle.open .chev { transform: rotate(180deg); }
+
+  .secondary-wrap { display:none; }
+  .secondary-wrap.open { display:block; }
+  .secondary-grid { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-top:10px; }
+  .secondary-tile { background: var(--bg-raised); border-radius: var(--radius-sm); padding: 9px 6px; text-align:center; box-shadow: var(--shadow); }
+  .secondary-tile .val { font-family: var(--font-display); font-size:14.5px; font-weight:600; }
+  .secondary-tile .unit { font-size:9px; color: var(--ink-faint); margin-top:1px; }
+
+  .field-toggle { background:none; border:none; color: var(--brand); font-size:12px; font-weight:700; padding:8px 2px 0; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+  .more-fields { display:none; margin-top:8px; }
+  .more-fields.open { display:block; }
 
   .section-head { display:flex; align-items:baseline; justify-content:space-between; margin: 26px 0 10px; }
   .section-head h2 { font-size: 17px; margin:0; font-weight:600; }
@@ -206,18 +227,34 @@
         </div>
       </div>
 
-      <div class="macro-grid">
-        <div class="macro-tile"><div class="dot" style="background:var(--protein)"></div><div class="val" id="mProtein">0</div><div class="unit">g protein</div></div>
-        <div class="macro-tile"><div class="dot" style="background:var(--carbs)"></div><div class="val" id="mCarbs">0</div><div class="unit">g carbs</div></div>
-        <div class="macro-tile"><div class="dot" style="background:var(--fat)"></div><div class="val" id="mFat">0</div><div class="unit">g fat</div></div>
-        <div class="macro-tile"><div class="dot" style="background:var(--fibre)"></div><div class="val" id="mFibre">0</div><div class="unit">g fibre</div></div>
+      <div class="primary-grid">
+        <div class="primary-tile"><div class="dot" style="background:var(--protein)"></div><div class="val" id="mProtein">0<span style="font-size:13px;">g</span></div><div class="unit">Protein</div></div>
+        <div class="primary-tile"><div class="dot" style="background:var(--fibre)"></div><div class="val" id="mFibre">0<span style="font-size:13px;">g</span></div><div class="unit">Fibre</div></div>
       </div>
 
-      <div class="split-bar" id="splitBar"></div>
-      <div class="split-legend">
-        <span><i style="background:var(--protein)"></i>Protein <span id="splitP">0%</span></span>
-        <span><i style="background:var(--carbs)"></i>Carbs <span id="splitC">0%</span></span>
-        <span><i style="background:var(--fat)"></i>Fat <span id="splitF">0%</span></span>
+      <div class="water-card">
+        <div class="water-head">
+          <span class="label">Water</span>
+          <span class="amt" id="waterAmt">0<span id="waterTargetLbl"> / 2000 ml</span></span>
+        </div>
+        <div class="water-bar"><div class="water-bar-fill" id="waterBarFill" style="width:0%;"></div></div>
+        <div class="water-actions">
+          <button class="water-btn" data-water="250">+250ml</button>
+          <button class="water-btn" data-water="500">+500ml</button>
+          <button class="water-edit" id="waterEditBtn">Edit</button>
+        </div>
+      </div>
+
+      <button class="more-toggle" id="moreToggleBtn"><span>More nutrients</span><span class="chev">▾</span></button>
+      <div class="secondary-wrap" id="secondaryWrap">
+        <div class="secondary-grid">
+          <div class="secondary-tile"><div class="val" id="mCarbs">0</div><div class="unit">g carbs</div></div>
+          <div class="secondary-tile"><div class="val" id="mFat">0</div><div class="unit">g fat</div></div>
+          <div class="secondary-tile"><div class="val" id="mSugar">0</div><div class="unit">g sugar</div></div>
+          <div class="secondary-tile"><div class="val" id="mSatFat">0</div><div class="unit">g sat. fat</div></div>
+          <div class="secondary-tile"><div class="val" id="mSodium">0</div><div class="unit">mg sodium</div></div>
+          <div class="secondary-tile"><div class="val" id="mPotassium">0</div><div class="unit">mg potassium</div></div>
+        </div>
       </div>
 
       <div class="section-head"><h2>Today's food</h2><span class="hint" id="todayCount"></span></div>
@@ -323,24 +360,30 @@
   const round = (n) => Math.round((Number(n) || 0) * 10) / 10;
   const roundInt = (n) => Math.round(Number(n) || 0);
 
+  const profile = store.get('profile', { calorieTarget: 2000, waterTarget: 2000 });
   const state = {
-    calorieTarget: store.get('profile', { calorieTarget: 2000 }).calorieTarget || 2000,
+    calorieTarget: profile.calorieTarget || 2000,
+    waterTarget: profile.waterTarget || 2000,
     days: store.get('days', {}),
     savedFoods: store.get('saved', []),
     pendingReviewItems: [],
+    secondaryOpen: false,
   };
 
   function todayEntries() { return (state.days[todayKey()] && state.days[todayKey()].entries) || []; }
+  function todayWater() { return (state.days[todayKey()] && state.days[todayKey()].water) || 0; }
   function saveDays() { store.set('days', state.days); }
-  function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget }); }
+  function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget, waterTarget: state.waterTarget }); }
   function saveSaved() { store.set('saved', state.savedFoods); }
 
   function computeTotals(entries) {
     return entries.reduce((acc, e) => {
       acc.calories += Number(e.calories) || 0; acc.protein += Number(e.protein) || 0;
       acc.carbs += Number(e.carbs) || 0; acc.fat += Number(e.fat) || 0; acc.fibre += Number(e.fibre) || 0;
+      acc.sugar += Number(e.sugar) || 0; acc.satFat += Number(e.satFat) || 0;
+      acc.sodium += Number(e.sodium) || 0; acc.potassium += Number(e.potassium) || 0;
       return acc;
-    }, { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 });
+    }, { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0 });
   }
 
   function renderToday() {
@@ -358,18 +401,19 @@
     ring.style.strokeDashoffset = 314 * (1 - pct);
     ring.style.stroke = (target && totals.calories > target) ? '#F2B8A3' : '#ffffff';
 
-    $('mProtein').textContent = round(totals.protein);
+    $('mProtein').innerHTML = round(totals.protein) + '<span style="font-size:13px;">g</span>';
+    $('mFibre').innerHTML = round(totals.fibre) + '<span style="font-size:13px;">g</span>';
     $('mCarbs').textContent = round(totals.carbs);
     $('mFat').textContent = round(totals.fat);
-    $('mFibre').textContent = round(totals.fibre);
+    $('mSugar').textContent = round(totals.sugar);
+    $('mSatFat').textContent = round(totals.satFat);
+    $('mSodium').textContent = roundInt(totals.sodium);
+    $('mPotassium').textContent = roundInt(totals.potassium);
 
-    const pCal = totals.protein * 4, cCal = totals.carbs * 4, fCal = totals.fat * 9;
-    const sumCal = pCal + cCal + fCal;
-    const pPct = sumCal ? Math.round(pCal / sumCal * 100) : 0;
-    const cPct = sumCal ? Math.round(cCal / sumCal * 100) : 0;
-    const fPct = sumCal ? Math.max(0, 100 - pPct - cPct) : 0;
-    $('splitP').textContent = pPct + '%'; $('splitC').textContent = cPct + '%'; $('splitF').textContent = fPct + '%';
-    $('splitBar').innerHTML = sumCal ? `<span style="width:${pPct}%;background:var(--protein)"></span><span style="width:${cPct}%;background:var(--carbs)"></span><span style="width:${fPct}%;background:var(--fat)"></span>` : '';
+    const water = todayWater();
+    const waterTarget = state.waterTarget || 0;
+    $('waterAmt').innerHTML = roundInt(water) + '<span id="waterTargetLbl">' + (waterTarget ? ' / ' + roundInt(waterTarget) + ' ml' : ' ml') + '</span>';
+    $('waterBarFill').style.width = waterTarget ? Math.max(0, Math.min(100, water / waterTarget * 100)) + '%' : '0%';
 
     const list = $('todayList');
     $('todayCount').textContent = entries.length ? entries.length + ' item' + (entries.length === 1 ? '' : 's') : '';
@@ -409,7 +453,43 @@
   }
   function saveTarget(val) { state.calorieTarget = val; saveProfile(); renderToday(); }
 
-  function blankItem() { return { name: '', quantity: '', calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 }; }
+  function addWater(ml) {
+    const k = todayKey();
+    if (!state.days[k]) state.days[k] = { date: k, entries: [] };
+    state.days[k].water = (state.days[k].water || 0) + ml;
+    saveDays(); renderToday();
+  }
+  function setWater(ml, target) {
+    const k = todayKey();
+    if (!state.days[k]) state.days[k] = { date: k, entries: [] };
+    state.days[k].water = Math.max(0, ml);
+    state.waterTarget = Math.max(0, target);
+    saveDays(); saveProfile(); renderToday();
+  }
+  document.querySelectorAll('.water-btn[data-water]').forEach(b => {
+    b.addEventListener('click', () => addWater(Number(b.dataset.water)));
+  });
+  $('waterEditBtn').addEventListener('click', () => {
+    openModal('Water',
+      `<div class="field"><label>Today's water (ml)</label><input type="number" id="waterTodayInput" value="${roundInt(todayWater())}"></div>
+       <div class="field" style="margin-top:8px;"><label>Daily target (ml)</label><input type="number" id="waterTargetInput" value="${roundInt(state.waterTarget)}"></div>
+       <button class="btn primary" id="waterSaveBtn" style="margin-top:14px;">Save</button>`,
+      () => {
+        $('waterSaveBtn').addEventListener('click', () => {
+          setWater(Number($('waterTodayInput').value) || 0, Number($('waterTargetInput').value) || 0);
+          closeModal(); toast('Water updated');
+        });
+      });
+  });
+
+  $('moreToggleBtn').addEventListener('click', () => {
+    state.secondaryOpen = !state.secondaryOpen;
+    $('moreToggleBtn').classList.toggle('open', state.secondaryOpen);
+    $('secondaryWrap').classList.toggle('open', state.secondaryOpen);
+    $('moreToggleBtn').querySelector('span').textContent = state.secondaryOpen ? 'Fewer nutrients' : 'More nutrients';
+  });
+
+  function blankItem() { return { name: '', quantity: '', calories: 0, protein: 0, fibre: 0, carbs: 0, fat: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0, _moreOpen: false }; }
   function renderReview() {
     if (!state.pendingReviewItems.length) state.pendingReviewItems.push(blankItem());
     const area = $('reviewArea');
@@ -428,6 +508,15 @@
         renderReview();
       });
     });
+    area.querySelectorAll('.field-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.closest('.review-card').dataset.idx);
+        state.pendingReviewItems[idx]._moreOpen = !state.pendingReviewItems[idx]._moreOpen;
+        const card = btn.closest('.review-card');
+        card.querySelector('.more-fields').classList.toggle('open', state.pendingReviewItems[idx]._moreOpen);
+        btn.textContent = state.pendingReviewItems[idx]._moreOpen ? 'Hide extra nutrients' : 'More nutrients (carbs, fat, sugar...)';
+      });
+    });
   }
   function reviewCardHtml(it, idx) {
     return `
@@ -440,11 +529,20 @@
       <div class="field-row">
         <div class="field"><label>Calories</label><input type="number" data-field="calories" value="${round(it.calories)}"></div>
         <div class="field"><label>Protein (g)</label><input type="number" data-field="protein" value="${round(it.protein)}"></div>
-        <div class="field"><label>Carbs (g)</label><input type="number" data-field="carbs" value="${round(it.carbs)}"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Fat (g)</label><input type="number" data-field="fat" value="${round(it.fat)}"></div>
         <div class="field"><label>Fibre (g)</label><input type="number" data-field="fibre" value="${round(it.fibre)}"></div>
+      </div>
+      <button class="field-toggle" type="button">${it._moreOpen ? 'Hide extra nutrients' : 'More nutrients (carbs, fat, sugar...)'}</button>
+      <div class="more-fields${it._moreOpen ? ' open' : ''}">
+        <div class="field-row">
+          <div class="field"><label>Carbs (g)</label><input type="number" data-field="carbs" value="${round(it.carbs)}"></div>
+          <div class="field"><label>Fat (g)</label><input type="number" data-field="fat" value="${round(it.fat)}"></div>
+          <div class="field"><label>Sugar (g)</label><input type="number" data-field="sugar" value="${round(it.sugar)}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Sat. fat (g)</label><input type="number" data-field="satFat" value="${round(it.satFat)}"></div>
+          <div class="field"><label>Sodium (mg)</label><input type="number" data-field="sodium" value="${round(it.sodium)}"></div>
+          <div class="field"><label>Potassium (mg)</label><input type="number" data-field="potassium" value="${round(it.potassium)}"></div>
+        </div>
       </div>
     </div>`;
   }
@@ -454,8 +552,10 @@
     if (!valid.length) { toast('Add a food name first'); return; }
     const now = new Date().toISOString();
     const entries = valid.map(it => ({ id: uid_(), name: it.name, quantity: it.quantity || '',
-      calories: Number(it.calories) || 0, protein: Number(it.protein) || 0, carbs: Number(it.carbs) || 0,
-      fat: Number(it.fat) || 0, fibre: Number(it.fibre) || 0, time: now, source: 'manual' }));
+      calories: Number(it.calories) || 0, protein: Number(it.protein) || 0, fibre: Number(it.fibre) || 0,
+      carbs: Number(it.carbs) || 0, fat: Number(it.fat) || 0, sugar: Number(it.sugar) || 0,
+      satFat: Number(it.satFat) || 0, sodium: Number(it.sodium) || 0, potassium: Number(it.potassium) || 0,
+      time: now, source: 'manual' }));
     addEntries(entries);
     state.pendingReviewItems = [blankItem()];
     renderReview();
@@ -466,32 +566,47 @@
   function openEntryModal(id) {
     const e = todayEntries().find(x => x.id === id);
     if (!e) return;
+    const readFields = () => ({
+      name: $('em_name').value, quantity: $('em_qty').value,
+      calories: Number($('em_cal').value) || 0, protein: Number($('em_pro').value) || 0, fibre: Number($('em_fib').value) || 0,
+      carbs: Number($('em_carb').value) || 0, fat: Number($('em_fat').value) || 0, sugar: Number($('em_sugar').value) || 0,
+      satFat: Number($('em_satfat').value) || 0, sodium: Number($('em_sodium').value) || 0, potassium: Number($('em_potassium').value) || 0,
+    });
     const body = `
       <div class="field"><label>Name</label><input type="text" id="em_name" value="${escapeHtml(e.name)}"></div>
       <div class="field" style="margin-top:8px;"><label>Quantity</label><input type="text" id="em_qty" value="${escapeHtml(e.quantity || '')}"></div>
       <div class="field-row" style="margin-top:8px;">
         <div class="field"><label>Calories</label><input type="number" id="em_cal" value="${round(e.calories)}"></div>
         <div class="field"><label>Protein (g)</label><input type="number" id="em_pro" value="${round(e.protein)}"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Carbs (g)</label><input type="number" id="em_carb" value="${round(e.carbs)}"></div>
-        <div class="field"><label>Fat (g)</label><input type="number" id="em_fat" value="${round(e.fat)}"></div>
         <div class="field"><label>Fibre (g)</label><input type="number" id="em_fib" value="${round(e.fibre)}"></div>
+      </div>
+      <button class="field-toggle" type="button" id="em_moreToggle">More nutrients (carbs, fat, sugar...)</button>
+      <div class="more-fields" id="em_moreFields">
+        <div class="field-row">
+          <div class="field"><label>Carbs (g)</label><input type="number" id="em_carb" value="${round(e.carbs)}"></div>
+          <div class="field"><label>Fat (g)</label><input type="number" id="em_fat" value="${round(e.fat)}"></div>
+          <div class="field"><label>Sugar (g)</label><input type="number" id="em_sugar" value="${round(e.sugar)}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Sat. fat (g)</label><input type="number" id="em_satfat" value="${round(e.satFat)}"></div>
+          <div class="field"><label>Sodium (mg)</label><input type="number" id="em_sodium" value="${round(e.sodium)}"></div>
+          <div class="field"><label>Potassium (mg)</label><input type="number" id="em_potassium" value="${round(e.potassium)}"></div>
+        </div>
       </div>
       <button class="btn primary" id="em_save" style="margin-top:16px;">Save changes</button>
       <button class="btn ghost" id="em_saveFood" style="margin-top:10px;">Save as a quick food</button>
       <button class="btn danger-text" id="em_delete" style="width:100%;text-align:center;margin-top:6px;">Delete entry</button>`;
     openModal('Edit food', body, () => {
+      $('em_moreToggle').addEventListener('click', () => {
+        const open = $('em_moreFields').classList.toggle('open');
+        $('em_moreToggle').textContent = open ? 'Hide extra nutrients' : 'More nutrients (carbs, fat, sugar...)';
+      });
       $('em_save').addEventListener('click', () => {
-        updateEntry(id, { name: $('em_name').value, quantity: $('em_qty').value,
-          calories: Number($('em_cal').value) || 0, protein: Number($('em_pro').value) || 0,
-          carbs: Number($('em_carb').value) || 0, fat: Number($('em_fat').value) || 0, fibre: Number($('em_fib').value) || 0 });
+        updateEntry(id, readFields());
         closeModal(); toast('Updated');
       });
       $('em_saveFood').addEventListener('click', () => {
-        saveAsQuickFood({ name: $('em_name').value, quantity: $('em_qty').value,
-          calories: Number($('em_cal').value) || 0, protein: Number($('em_pro').value) || 0,
-          carbs: Number($('em_carb').value) || 0, fat: Number($('em_fat').value) || 0, fibre: Number($('em_fib').value) || 0 });
+        saveAsQuickFood(readFields());
         toast('Saved to quick foods');
       });
       $('em_delete').addEventListener('click', () => { deleteEntry(id); closeModal(); toast('Removed'); });
@@ -500,7 +615,8 @@
 
   function saveAsQuickFood(item) {
     state.savedFoods.push({ id: uid_(), name: item.name, quantity: item.quantity || '', calories: item.calories || 0,
-      protein: item.protein || 0, carbs: item.carbs || 0, fat: item.fat || 0, fibre: item.fibre || 0 });
+      protein: item.protein || 0, fibre: item.fibre || 0, carbs: item.carbs || 0, fat: item.fat || 0,
+      sugar: item.sugar || 0, satFat: item.satFat || 0, sodium: item.sodium || 0, potassium: item.potassium || 0 });
     state.savedFoods.sort((a, b) => a.name.localeCompare(b.name));
     saveSaved(); renderSaved();
   }
@@ -508,7 +624,8 @@
     const f = state.savedFoods.find(x => x.id === savedId);
     if (!f) return;
     addEntries([{ id: uid_(), name: f.name, quantity: f.quantity || '', calories: f.calories || 0,
-      protein: f.protein || 0, carbs: f.carbs || 0, fat: f.fat || 0, fibre: f.fibre || 0,
+      protein: f.protein || 0, fibre: f.fibre || 0, carbs: f.carbs || 0, fat: f.fat || 0,
+      sugar: f.sugar || 0, satFat: f.satFat || 0, sodium: f.sodium || 0, potassium: f.potassium || 0,
       time: new Date().toISOString(), source: 'saved' }]);
     toast(f.name + ' added to today');
   }
@@ -522,7 +639,7 @@
     list.innerHTML = state.savedFoods.map(f => `
       <div class="saved-item">
         <div class="info"><div class="name">${escapeHtml(f.name)}</div>
-          <div class="sub">${f.quantity ? escapeHtml(f.quantity) + ' · ' : ''}${roundInt(f.calories)} kcal · P${round(f.protein)} C${round(f.carbs)} F${round(f.fat)}</div>
+          <div class="sub">${f.quantity ? escapeHtml(f.quantity) + ' · ' : ''}${roundInt(f.calories)} kcal · P${round(f.protein)}g · Fibre ${round(f.fibre)}g</div>
         </div>
         <button class="add-round" data-add="${f.id}">+</button>
         <button class="remove-item" data-del="${f.id}">✕</button>
@@ -545,11 +662,18 @@
         </div>
         <div class="macros">
           <span><b>${round(t.protein)}g</b> protein</span>
-          <span><b>${round(t.carbs)}g</b> carbs</span>
-          <span><b>${round(t.fat)}g</b> fat</span>
           <span><b>${round(t.fibre)}g</b> fibre</span>
+          <span><b>${roundInt(day.water || 0)}ml</b> water</span>
         </div>
         <div class="day-entries" id="entries-${day.date}">
+          <div class="macros" style="margin-top:0;margin-bottom:8px;">
+            <span><b>${round(t.carbs)}g</b> carbs</span>
+            <span><b>${round(t.fat)}g</b> fat</span>
+            <span><b>${round(t.sugar)}g</b> sugar</span>
+            <span><b>${round(t.satFat)}g</b> sat. fat</span>
+            <span><b>${roundInt(t.sodium)}mg</b> sodium</span>
+            <span><b>${roundInt(t.potassium)}mg</b> potassium</span>
+          </div>
           ${(day.entries || []).map(e => `<div class="e"><span>${escapeHtml(e.name)}${e.quantity ? ' · ' + escapeHtml(e.quantity) : ''}</span><span>${roundInt(e.calories)} kcal</span></div>`).join('') || '<div class="e">No items</div>'}
         </div>
       </div>`;
