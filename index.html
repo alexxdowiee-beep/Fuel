@@ -207,6 +207,9 @@
   .saved-group-head { display:flex; justify-content:space-between; align-items:baseline; margin: 20px 0 2px; }
   .saved-group-head h3 { font-size:15px; margin:0; font-weight:600; }
   .saved-group-head span { font-size:11.5px; color: var(--ink-faint); }
+  .meal-head { display:flex; justify-content:space-between; align-items:baseline; margin: 14px 0 0; padding-bottom:4px; border-bottom:1.5px solid var(--line); }
+  .meal-head h3 { font-size:14.5px; margin:0; font-weight:600; }
+  .meal-head span { font-size:12px; color: var(--ink-soft); font-weight:700; }
   .saved-item .edit-hint { font-size:11px; color: var(--brand); font-weight:700; margin-left:6px; }
   .saved-item .sub { font-size:12px; color: var(--ink-soft); margin-top:2px; }
   .saved-item-controls { display:flex; align-items:center; gap:8px; }
@@ -294,7 +297,7 @@
 
     <section class="screen" id="screen-add">
       <div class="section-head" style="margin-top:18px;"><h2>Log food</h2><span class="hint">Add one or more items</span></div>
-      <div class="examples" style="margin:-4px 0 12px;">Enter values for one serving. <b>Save food</b> keeps it in Saved foods for reuse. <b>Quick add</b> logs it to today only (multiplied by servings).</div>
+      <div class="examples" style="margin:-4px 0 12px;">Enter values for one serving. <b>Save food</b> keeps it in Saved foods under the chosen meal. <b>Quick add</b> logs it to today only, under that meal (multiplied by servings).</div>
       <div id="reviewArea"></div>
       <button class="btn ghost" id="addAnotherBtn" style="margin-top:4px;">+ Add another food</button>
       <div style="display:flex;gap:10px;margin-top:14px;">
@@ -512,15 +515,22 @@
       list.innerHTML = `<div class="empty-state"><div class="emoji">🥣</div><p>Nothing logged yet today.</p><p>Head to Add Food to get started.</p></div>`;
       return;
     }
-    const sorted = [...entries].sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-    list.innerHTML = sorted.map(e => `
+    const sorted = [...entries].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    const itemHtml = (e) => `
       <div class="log-item" data-id="${e.id}">
         <div class="info">
           <div class="name">${escapeHtml(e.name)}</div>
           <div class="sub">${e.quantity ? escapeHtml(e.quantity) + ' · ' : ''}<span class="badge">${e.source === 'saved' ? 'Saved food' : 'Logged'}</span></div>
         </div>
         <div class="kcal">${roundInt(e.calories)} kcal</div>
-      </div>`).join('');
+      </div>`;
+    list.innerHTML = CATEGORIES.map(c => {
+      const items = sorted.filter(e => entryCategory(e) === c);
+      if (!items.length) return '';
+      const kcal = items.reduce((sum, e) => sum + (Number(e.calories) || 0), 0);
+      return `<div class="meal-head"><h3>${c}</h3><span>${roundInt(kcal)} kcal</span></div>
+        <div class="log-list">${items.map(itemHtml).join('')}</div>`;
+    }).join('');
     list.querySelectorAll('.log-item').forEach(el => el.addEventListener('click', () => openEntryModal(el.dataset.id)));
   }
 
@@ -584,13 +594,18 @@
   // and show under "Uncategorised" until edited.
   const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
   // Sensible default for a new food based on the time of day (you can always change it).
-  function defaultCategory() {
-    const h = new Date().getHours() + new Date().getMinutes() / 60;
+  function defaultCategory() { return categoryForTime(new Date()); }
+  function categoryForTime(d) {
+    if (!(d instanceof Date) || isNaN(d)) return 'Snack';
+    const h = d.getHours() + d.getMinutes() / 60;
     if (h >= 4 && h < 10.5) return 'Breakfast';
     if (h >= 10.5 && h < 14.5) return 'Lunch';
     if (h >= 17 && h < 21.5) return 'Dinner';
     return 'Snack';
   }
+  // Meal for a logged item: its saved category, or (for items logged before meals existed)
+  // worked out from the time it was logged.
+  function entryCategory(e) { return CATEGORIES.includes(e.category) ? e.category : categoryForTime(new Date(e.time)); }
   function catChipsHtml(selected, attr) {
     return `<div class="cat-chips">${CATEGORIES.map(c =>
       `<button type="button" class="cat-chip${c === selected ? ' active' : ''}" ${attr}="${c}">${c}</button>`).join('')}</div>`;
@@ -643,7 +658,7 @@
         <input type="text" data-field="quantity" value="${escapeHtml(it.quantity)}" placeholder="Quantity, e.g. 1 slice" style="flex:2;min-width:110px;">
         <div class="field" style="max-width:78px;"><label>Servings</label><input type="number" data-field="servings" value="${it.servings || 1}" min="1" step="1"></div>
       </div>
-      <div class="cat-label">Category (for Save food)</div>
+      <div class="cat-label">Meal</div>
       ${catChipsHtml(it.category, 'data-cat')}
       <div class="field-row">
         <div class="field"><label>Calories</label><input type="number" data-field="calories" value="${round(it.calories)}"></div>
@@ -677,7 +692,7 @@
         calories: (Number(it.calories) || 0) * servings, protein: (Number(it.protein) || 0) * servings, fibre: (Number(it.fibre) || 0) * servings,
         carbs: (Number(it.carbs) || 0) * servings, fat: (Number(it.fat) || 0) * servings, sugar: (Number(it.sugar) || 0) * servings,
         satFat: (Number(it.satFat) || 0) * servings, sodium: (Number(it.sodium) || 0) * servings, potassium: (Number(it.potassium) || 0) * servings,
-        time: now, source: 'manual' };
+        category: it.category || defaultCategory(), time: now, source: 'manual' };
     });
     addEntries(entries);
     state.pendingReviewItems = [blankItem()];
@@ -703,8 +718,9 @@
   function openEntryModal(id) {
     const e = todayEntries().find(x => x.id === id);
     if (!e) return;
+    let chosenMeal = entryCategory(e);
     const readFields = () => ({
-      name: $('em_name').value, quantity: $('em_qty').value,
+      name: $('em_name').value, quantity: $('em_qty').value, category: chosenMeal,
       calories: Number($('em_cal').value) || 0, protein: Number($('em_pro').value) || 0, fibre: Number($('em_fib').value) || 0,
       carbs: Number($('em_carb').value) || 0, fat: Number($('em_fat').value) || 0, sugar: Number($('em_sugar').value) || 0,
       satFat: Number($('em_satfat').value) || 0, sodium: Number($('em_sodium').value) || 0, potassium: Number($('em_potassium').value) || 0,
@@ -712,6 +728,8 @@
     const body = `
       <div class="field"><label>Name</label><input type="text" id="em_name" value="${escapeHtml(e.name)}"></div>
       <div class="field" style="margin-top:8px;"><label>Quantity</label><input type="text" id="em_qty" value="${escapeHtml(e.quantity || '')}"></div>
+      <div class="cat-label">Meal</div>
+      ${catChipsHtml(chosenMeal, 'data-emcat')}
       <div class="field-row" style="margin-top:8px;">
         <div class="field"><label>Calories</label><input type="number" id="em_cal" value="${round(e.calories)}"></div>
         <div class="field"><label>Protein (g)</label><input type="number" id="em_pro" value="${round(e.protein)}"></div>
@@ -734,6 +752,10 @@
       <button class="btn ghost" id="em_saveFood" style="margin-top:10px;">Save as a quick food</button>
       <button class="btn danger-text" id="em_delete" style="width:100%;text-align:center;margin-top:6px;">Delete entry</button>`;
     openModal('Edit food', body, () => {
+      document.querySelectorAll('[data-emcat]').forEach(chip => chip.addEventListener('click', () => {
+        chosenMeal = chip.dataset.emcat;
+        document.querySelectorAll('[data-emcat]').forEach(c => c.classList.toggle('active', c === chip));
+      }));
       $('em_moreToggle').addEventListener('click', () => {
         const open = $('em_moreFields').classList.toggle('open');
         $('em_moreToggle').textContent = open ? 'Hide extra nutrients' : 'More nutrients (carbs, fat, sugar...)';
@@ -765,6 +787,7 @@
     addEntries([{ id: uid_(), name: f.name, quantity: qtyLabel, calories: (f.calories || 0) * qty,
       protein: (f.protein || 0) * qty, fibre: (f.fibre || 0) * qty, carbs: (f.carbs || 0) * qty, fat: (f.fat || 0) * qty,
       sugar: (f.sugar || 0) * qty, satFat: (f.satFat || 0) * qty, sodium: (f.sodium || 0) * qty, potassium: (f.potassium || 0) * qty,
+      category: CATEGORIES.includes(f.category) ? f.category : defaultCategory(),
       time: new Date().toISOString(), source: 'saved' }]);
     state.savedQty[savedId] = 1;
     toast((qty > 1 ? qty + '× ' : '') + f.name + ' added to today');
