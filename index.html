@@ -198,6 +198,8 @@
   .saved-item { display:flex; flex-direction:column; gap:9px; padding: 13px 2px; border-bottom: 1px solid var(--line); }
   .saved-item .info { flex:1; }
   .saved-item .name { font-weight:600; font-size:14.5px; }
+  .saved-item .info { cursor:pointer; }
+  .saved-item .edit-hint { font-size:11px; color: var(--brand); font-weight:700; margin-left:6px; }
   .saved-item .sub { font-size:12px; color: var(--ink-soft); margin-top:2px; }
   .saved-item-controls { display:flex; align-items:center; gap:8px; }
   .qty-stepper { display:flex; align-items:center; background: var(--bg); border:1.5px solid var(--line); border-radius:999px; flex-shrink:0; }
@@ -308,7 +310,7 @@
     </section>
 
     <section class="screen" id="screen-saved">
-      <div class="section-head" style="margin-top:18px;"><h2>Saved foods</h2><span class="hint">Tap + to log</span></div>
+      <div class="section-head" style="margin-top:18px;"><h2>Saved foods</h2><span class="hint">Tap a food to edit</span></div>
       <div id="savedList"></div>
     </section>
   </main>
@@ -735,6 +737,52 @@
     toast((qty > 1 ? qty + '× ' : '') + f.name + ' added to today');
     renderSaved();
   }
+  function openSavedFoodModal(id) {
+    const f = state.savedFoods.find(x => x.id === id);
+    if (!f) return;
+    const num = (k) => round(f[k] || 0);
+    const body = `
+      <div class="field"><label>Name</label><input type="text" id="sf_name" value="${escapeHtml(f.name)}"></div>
+      <div class="field" style="margin-top:8px;"><label>Quantity (one serving)</label><input type="text" id="sf_qty" value="${escapeHtml(f.quantity || '')}" placeholder="e.g. 1 egg"></div>
+      <div class="field-row" style="margin-top:8px;">
+        <div class="field"><label>Calories</label><input type="number" id="sf_calories" value="${num('calories')}"></div>
+        <div class="field"><label>Protein (g)</label><input type="number" id="sf_protein" value="${num('protein')}"></div>
+        <div class="field"><label>Fibre (g)</label><input type="number" id="sf_fibre" value="${num('fibre')}"></div>
+      </div>
+      <button class="field-toggle" type="button" id="sf_moreToggle">More nutrients (carbs, fat, sugar...)</button>
+      <div class="more-fields" id="sf_moreFields">
+        <div class="field-row">
+          <div class="field"><label>Carbs (g)</label><input type="number" id="sf_carbs" value="${num('carbs')}"></div>
+          <div class="field"><label>Fat (g)</label><input type="number" id="sf_fat" value="${num('fat')}"></div>
+          <div class="field"><label>Sugar (g)</label><input type="number" id="sf_sugar" value="${num('sugar')}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Sat. fat (g)</label><input type="number" id="sf_satFat" value="${num('satFat')}"></div>
+          <div class="field"><label>Sodium (mg)</label><input type="number" id="sf_sodium" value="${num('sodium')}"></div>
+          <div class="field"><label>Potassium (mg)</label><input type="number" id="sf_potassium" value="${num('potassium')}"></div>
+        </div>
+      </div>
+      <div class="examples" style="margin-top:10px;">Changes apply to future logs only — foods you've already logged keep their original values.</div>
+      <button class="btn primary" id="sf_save" style="margin-top:14px;">Save changes</button>
+      <button class="btn danger-text" id="sf_delete" style="width:100%;text-align:center;margin-top:6px;">Delete saved food</button>`;
+    openModal('Edit saved food', body, () => {
+      $('sf_moreToggle').addEventListener('click', () => {
+        const open = $('sf_moreFields').classList.toggle('open');
+        $('sf_moreToggle').textContent = open ? 'Hide extra nutrients' : 'More nutrients (carbs, fat, sugar...)';
+      });
+      $('sf_save').addEventListener('click', () => {
+        const name = $('sf_name').value.trim();
+        if (!name) { toast('Name can\u2019t be empty'); return; }
+        f.name = name;
+        f.quantity = $('sf_qty').value;
+        ['calories','protein','fibre','carbs','fat','sugar','satFat','sodium','potassium']
+          .forEach(k => { f[k] = Math.max(0, Number($('sf_' + k).value) || 0); });
+        state.savedFoods.sort((a, b) => a.name.localeCompare(b.name));
+        saveSaved(); renderSaved(); closeModal(); toast('Saved food updated');
+      });
+      $('sf_delete').addEventListener('click', () => { deleteSavedFood(id); closeModal(); toast('Deleted'); });
+    });
+  }
   function deleteSavedFood(id) { state.savedFoods = state.savedFoods.filter(x => x.id !== id); saveSaved(); renderSaved(); }
   function renderSaved() {
     const list = $('savedList');
@@ -746,7 +794,7 @@
       const qty = state.savedQty[f.id] || 1;
       return `
       <div class="saved-item">
-        <div class="info"><div class="name">${escapeHtml(f.name)}</div>
+        <div class="info" data-edit="${f.id}"><div class="name">${escapeHtml(f.name)}<span class="edit-hint">✎ Edit</span></div>
           <div class="sub">${f.quantity ? escapeHtml(f.quantity) + ' · ' : ''}${roundInt(f.calories)} kcal · P${round(f.protein)}g · Fibre ${round(f.fibre)}g <span style="color:var(--ink-faint);">(per 1)</span></div>
         </div>
         <div class="saved-item-controls">
@@ -770,6 +818,7 @@
     }));
     list.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => quickAdd(b.dataset.add)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteSavedFood(b.dataset.del)));
+    list.querySelectorAll('[data-edit]').forEach(el => el.addEventListener('click', () => openSavedFoodModal(el.dataset.edit)));
   }
 
   function renderHistory() {
