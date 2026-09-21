@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Fuel</title>
-<meta name="theme-color" content="#274B3B">
+<meta name="theme-color" content="#0A0A0B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,52 +15,35 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
+  /* Forge palette: shared dark look across the app ecosystem (dark only, like Forge). */
   :root {
-    --bg: #F6F4EC;
-    --bg-raised: #FFFFFF;
-    --ink: #1B2620;
-    --ink-soft: #5B6B5F;
-    --ink-faint: #93A093;
-    --line: #DDE2D5;
-    --brand: #274B3B;
-    --brand-soft: #E4EBDF;
-    --accent: #C7542F;
-    --protein: #B14A32;
-    --carbs: #C98A2B;
-    --fat: #6E5A8C;
-    --fibre: #4F7A56;
-    --warn: #B3401F;
-    --shadow: 0 1px 2px rgba(27,38,32,0.06), 0 6px 20px rgba(27,38,32,0.05);
-    --radius-lg: 22px;
+    --bg: #0A0A0B;          /* page */
+    --bg-raised: #141416;   /* cards (Forge --surface) */
+    --surface2: #1D1E21;    /* inputs, chips, inner tiles */
+    --ink: #F5F5F6;
+    --ink-soft: #8C8D92;    /* Forge --muted */
+    --ink-faint: #4E5054;
+    --line: #26272B;        /* Forge --border */
+    --brand: #FF4A16;       /* Forge orange */
+    --brand-ink: #120B07;   /* text on orange */
+    --brand-soft: rgba(255,74,22,0.12);
+    --accent: #F0B429;      /* Forge gold */
+    --protein: #FF4A16;
+    --fibre: #F0B429;
+    --water: #F5F5F6;
+    --carbs: #8C8D92;
+    --fat: #8C8D92;
+    --warn: #E5484D;
+    --shadow: none;
+    --radius-lg: 16px;
     --radius-md: 14px;
-    --radius-sm: 9px;
-    --font-display: 'Fraunces', Georgia, serif;
-    --font-body: 'Manrope', system-ui, -apple-system, sans-serif;
-    color-scheme: light;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #14180F;
-      --bg-raised: #1D231A;
-      --ink: #ECEFE6;
-      --ink-soft: #ADBAA6;
-      --ink-faint: #6C7A67;
-      --line: #2C3427;
-      --brand: #8FC1A0;
-      --brand-soft: #263426;
-      --accent: #E68A5C;
-      --protein: #E08469;
-      --carbs: #E0AC5A;
-      --fat: #A896D0;
-      --fibre: #86B98D;
-      --warn: #E68A5C;
-      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.28);
-      color-scheme: dark;
-    }
-    .ring-card, .btn.primary { color: #12150F; }
+    --radius-sm: 10px;
+    --font-display: 'Anton', 'Arial Narrow', 'Haettenschweiler', sans-serif;
+    --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+    color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
@@ -215,7 +198,6 @@
   .cat-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
   .cat-chip { border:1.5px solid var(--line); background: var(--bg); color: var(--ink-soft); border-radius:999px; padding:6px 11px; font-size:12px; font-weight:700; cursor:pointer; }
   .cat-chip.active { background: var(--brand); border-color: var(--brand); color:#fff; }
-  @media (prefers-color-scheme: dark) { .cat-chip.active { color:#12150F; } }
   .cat-label { font-size:10.5px; color: var(--ink-faint); font-weight:700; margin-top:10px; }
   .saved-group-head { display:flex; justify-content:space-between; align-items:baseline; margin: 20px 0 2px; }
   .saved-group-head h3 { font-size:15px; margin:0; font-weight:600; }
@@ -230,7 +212,6 @@
   .qty-btn { width:30px; height:30px; border:none; background:none; color:var(--brand); font-size:17px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .qty-val { min-width:20px; text-align:center; font-weight:700; font-size:13.5px; }
   .add-log-btn { flex:1; border:none; border-radius:999px; padding:9px 10px; font-size:12.5px; font-weight:700; background: var(--brand); color:#fff; cursor:pointer; }
-  @media (prefers-color-scheme: dark) { .add-log-btn { color:#12150F; } }
 
   nav.tabbar { position: fixed; left:0; right:0; bottom:0; z-index: 30; padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--bg-raised); border-top: 1px solid var(--line); }
   .tabbar-inner { max-width:520px; margin:0 auto; display:flex; }
@@ -248,12 +229,83 @@
 
   .toast { position: fixed; left:50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom,0px) + 84px); background: var(--ink); color: var(--bg); font-size:13px; padding:10px 18px; border-radius:999px; z-index:60; opacity:0; pointer-events:none; transition: opacity .25s, bottom .25s; }
   .toast.show { opacity:1; bottom: calc(env(safe-area-inset-bottom,0px) + 100px); }
+
+  /* ===================== FORGE LOOK ===================== */
+  h1, h2, h3, .display { font-weight: 400; }
+  header.topbar { background: var(--bg); border-bottom: 2px solid var(--brand); padding-bottom: 12px; margin-bottom: 14px; align-items: center; }
+  header.topbar .brand { display:flex; align-items:center; gap:9px; font-size: 20px; font-weight: 400; letter-spacing: 0.22em; text-transform: uppercase; }
+  header.topbar .brand svg { width: 24px; height: 24px; flex-shrink: 0; }
+  header.topbar .subline { font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .day-nav .subline.past { color: var(--brand); }
+
+  .section-head h2, .meal-head h3, .saved-group-head h3, .modal-sheet h3 {
+    font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .section-head h2 { font-size: 15px; }
+  .meal-head h3, .saved-group-head h3 { font-size: 14px; color: var(--ink-soft); }
+  .meal-head span, .saved-group-head span { font-variant-numeric: tabular-nums; }
+
+  /* cards: flat surface + hairline border instead of shadows */
+  .ring-card, .primary-tile, .water-card, .secondary-tile, .review-card, .day-card, .target-group {
+    background: var(--bg-raised); border: 1px solid var(--line); box-shadow: none;
+  }
+  .ring-card { color: var(--ink); border-radius: var(--radius-lg); }
+  .ring-track { stroke: var(--surface2); }
+  .ring-center .num { font-weight: 400; font-size: 30px; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; }
+  .ring-center .lbl { color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; font-size: 9.5px; opacity: 1; }
+  .ring-meta .row { opacity: 1; color: var(--ink-soft); }
+  .ring-meta .row b { color: var(--ink); font-family: var(--font-display); font-weight: 400; font-size: 15px; letter-spacing: 0.02em; }
+  .ring-meta button.edit-target { background: var(--surface2); border: 1px solid var(--line); color: var(--ink); font-weight: 600; }
+  #ringLbl { color: var(--ink-soft); }
+
+  .primary-tile .val, .secondary-tile .val, .water-head .amt, .log-item .kcal, .day-card .day-head .k, .meal-head span {
+    font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+  }
+  .primary-tile .unit, .secondary-tile .unit, .water-head .label {
+    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+  }
+  .mini-bar, .water-bar { background: var(--surface2); }
+  .water-bar-fill { background: var(--water); }
+  .hit { color: var(--brand) !important; }
+
+  /* inputs */
+  input[type=text], input[type=number] { background: var(--surface2); border: 1px solid var(--line); border-radius: 10px; font-size: 15px; }
+  input[type=text]:focus, input[type=number]:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: var(--line); }
+  .field label, .cat-label { text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* buttons: orange CTA with dark text, Anton caps, like Forge's big buttons */
+  .btn { border-radius: 14px; }
+  .btn.primary { background: var(--brand); color: var(--brand-ink); font-family: var(--font-display); font-weight: 400; font-size: 16px; letter-spacing: 0.09em; text-transform: uppercase; }
+  .btn.ghost { background: var(--surface2); border: 1px solid var(--line); color: var(--ink); }
+  .btn.text { color: var(--ink-soft); }
+  .btn.danger-text { color: var(--warn); }
+  .add-log-btn { background: var(--brand); color: var(--brand-ink); border-radius: 10px; }
+  .qty-stepper { background: var(--surface2); border: 1px solid var(--line); border-radius: 10px; }
+  .qty-btn { color: var(--ink); }
+  .water-btn { background: var(--surface2); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; }
+  .water-btn:active, .qty-btn:active { background: var(--brand); color: var(--brand-ink); }
+  .water-btn.minus { color: var(--ink-soft); border-radius: 10px; }
+  .cat-chip { background: var(--surface2); border: 1px solid var(--line); color: var(--ink-soft); border-radius: 20px; }
+  .cat-chip.active { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .field-toggle, .edit-hint, .day-banner button { color: var(--brand); }
+  .badge { background: var(--surface2); color: var(--ink-soft); }
+  .day-banner { background: var(--brand-soft); color: var(--brand); border: 1px dashed var(--brand); }
+
+  /* tab bar, sheets, toast */
+  nav.tabbar { background: var(--bg-raised); border-top: 1px solid var(--line); }
+  .tab { color: var(--ink-faint); }
+  .tab.active { color: var(--brand); }
+  .modal-scrim { background: rgba(6,7,8,0.8); }
+  .modal-sheet { background: var(--bg-raised); border-top: 2px solid var(--brand); }
+  .toast { background: var(--ink); color: var(--bg); font-weight: 700; }
+  .empty-state { color: var(--ink-soft); }
+  .btn:active, .add-log-btn:active, .cat-chip:active { transform: scale(0.98); }
 </style>
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <span class="brand">Fuel</span>
+    <span class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#26272B" stroke-width="3.2"/><circle cx="12" cy="12" r="9" fill="none" stroke="#FF4A16" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="42 57" transform="rotate(-90 12 12)"/></svg>Fuel</span>
     <div class="day-nav">
       <button class="day-arrow" id="dayPrev" aria-label="Previous day">‹</button>
       <span class="subline" id="topSubline"></span>
@@ -533,7 +585,7 @@
     const pct = target ? Math.max(0, Math.min(1, totals.calories / target)) : 0;
     const ring = $('ringFill');
     ring.style.strokeDashoffset = 314 * (1 - pct);
-    ring.style.stroke = (target && totals.calories > target) ? '#F2B8A3' : '#ffffff';
+    ring.style.stroke = (target && totals.calories > target) ? 'var(--warn)' : 'var(--brand)';
 
     $('mProtein').innerHTML = round(totals.protein) + '<span style="font-size:13px;">g</span>';
     $('mFibre').innerHTML = round(totals.fibre) + '<span style="font-size:13px;">g</span>';
