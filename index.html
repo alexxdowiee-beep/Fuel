@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>Harvest</title>
+<title>Fuel</title>
 <meta name="theme-color" content="#274B3B">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Harvest">
+<meta name="apple-mobile-web-app-title" content="Fuel">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
@@ -240,7 +240,7 @@
 <body>
 <div class="app">
   <header class="topbar">
-    <span class="brand">Harvest</span>
+    <span class="brand">Fuel</span>
     <span class="subline" id="topSubline"></span>
   </header>
 
@@ -349,6 +349,8 @@
 <script>
 (function () {
   /* ============ SHARED HELPERS (same across every app) ============ */
+  // Storage prefix kept as 'harvest_' (the app's original name) on purpose:
+  // changing it would hide all previously saved data. It is never shown on screen.
   const APP_PREFIX = 'harvest_';
   const $ = (id) => document.getElementById(id);
   const uid_ = () => 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -391,7 +393,7 @@
   $('genericModalClose').addEventListener('click', closeModal);
   $('genericModalScrim').addEventListener('click', (e) => { if (e.target === $('genericModalScrim')) closeModal(); });
 
-  /* ============ HARVEST-SPECIFIC CODE ============ */
+  /* ============ FUEL-SPECIFIC CODE ============ */
   const todayKey = () => {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
