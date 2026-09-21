@@ -199,6 +199,14 @@
   .saved-item .info { flex:1; }
   .saved-item .name { font-weight:600; font-size:14.5px; }
   .saved-item .info { cursor:pointer; }
+  .cat-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .cat-chip { border:1.5px solid var(--line); background: var(--bg); color: var(--ink-soft); border-radius:999px; padding:6px 11px; font-size:12px; font-weight:700; cursor:pointer; }
+  .cat-chip.active { background: var(--brand); border-color: var(--brand); color:#fff; }
+  @media (prefers-color-scheme: dark) { .cat-chip.active { color:#12150F; } }
+  .cat-label { font-size:10.5px; color: var(--ink-faint); font-weight:700; margin-top:10px; }
+  .saved-group-head { display:flex; justify-content:space-between; align-items:baseline; margin: 20px 0 2px; }
+  .saved-group-head h3 { font-size:15px; margin:0; font-weight:600; }
+  .saved-group-head span { font-size:11.5px; color: var(--ink-faint); }
   .saved-item .edit-hint { font-size:11px; color: var(--brand); font-weight:700; margin-left:6px; }
   .saved-item .sub { font-size:12px; color: var(--ink-soft); margin-top:2px; }
   .saved-item-controls { display:flex; align-items:center; gap:8px; }
@@ -572,7 +580,23 @@
     $('moreToggleBtn').querySelector('span').textContent = state.secondaryOpen ? 'Fewer nutrients' : 'More nutrients';
   });
 
-  function blankItem() { return { name: '', quantity: '', servings: 1, calories: 0, protein: 0, fibre: 0, carbs: 0, fat: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0, _moreOpen: false }; }
+  // Meal categories for saved foods. Foods saved before categories existed have none
+  // and show under "Uncategorised" until edited.
+  const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+  // Sensible default for a new food based on the time of day (you can always change it).
+  function defaultCategory() {
+    const h = new Date().getHours() + new Date().getMinutes() / 60;
+    if (h >= 4 && h < 10.5) return 'Breakfast';
+    if (h >= 10.5 && h < 14.5) return 'Lunch';
+    if (h >= 17 && h < 21.5) return 'Dinner';
+    return 'Snack';
+  }
+  function catChipsHtml(selected, attr) {
+    return `<div class="cat-chips">${CATEGORIES.map(c =>
+      `<button type="button" class="cat-chip${c === selected ? ' active' : ''}" ${attr}="${c}">${c}</button>`).join('')}</div>`;
+  }
+
+  function blankItem() { return { name: '', quantity: '', servings: 1, category: defaultCategory(), calories: 0, protein: 0, fibre: 0, carbs: 0, fat: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0, _moreOpen: false }; }
   function renderReview() {
     if (!state.pendingReviewItems.length) state.pendingReviewItems.push(blankItem());
     const area = $('reviewArea');
@@ -589,6 +613,13 @@
         const idx = Number(btn.closest('.review-card').dataset.idx);
         state.pendingReviewItems.splice(idx, 1);
         renderReview();
+      });
+    });
+    area.querySelectorAll('[data-cat]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const card = chip.closest('.review-card');
+        state.pendingReviewItems[Number(card.dataset.idx)].category = chip.dataset.cat;
+        card.querySelectorAll('[data-cat]').forEach(c => c.classList.toggle('active', c === chip));
       });
     });
     area.querySelectorAll('.field-toggle').forEach(btn => {
@@ -612,6 +643,8 @@
         <input type="text" data-field="quantity" value="${escapeHtml(it.quantity)}" placeholder="Quantity, e.g. 1 slice" style="flex:2;min-width:110px;">
         <div class="field" style="max-width:78px;"><label>Servings</label><input type="number" data-field="servings" value="${it.servings || 1}" min="1" step="1"></div>
       </div>
+      <div class="cat-label">Category (for Save food)</div>
+      ${catChipsHtml(it.category, 'data-cat')}
       <div class="field-row">
         <div class="field"><label>Calories</label><input type="number" data-field="calories" value="${round(it.calories)}"></div>
         <div class="field"><label>Protein (g)</label><input type="number" data-field="protein" value="${round(it.protein)}"></div>
@@ -657,7 +690,7 @@
   $('saveToFoodsBtn').addEventListener('click', () => {
     const valid = state.pendingReviewItems.filter(it => it.name.trim());
     if (!valid.length) { toast('Add a food name first'); return; }
-    valid.forEach(it => saveAsQuickFood({ name: it.name.trim(), quantity: it.quantity || '',
+    valid.forEach(it => saveAsQuickFood({ name: it.name.trim(), quantity: it.quantity || '', category: it.category || '',
       calories: Number(it.calories) || 0, protein: Number(it.protein) || 0, fibre: Number(it.fibre) || 0,
       carbs: Number(it.carbs) || 0, fat: Number(it.fat) || 0, sugar: Number(it.sugar) || 0,
       satFat: Number(it.satFat) || 0, sodium: Number(it.sodium) || 0, potassium: Number(it.potassium) || 0 }));
@@ -718,7 +751,7 @@
   }
 
   function saveAsQuickFood(item) {
-    state.savedFoods.push({ id: uid_(), name: item.name, quantity: item.quantity || '', calories: item.calories || 0,
+    state.savedFoods.push({ id: uid_(), name: item.name, quantity: item.quantity || '', category: item.category || '', calories: item.calories || 0,
       protein: item.protein || 0, fibre: item.fibre || 0, carbs: item.carbs || 0, fat: item.fat || 0,
       sugar: item.sugar || 0, satFat: item.satFat || 0, sodium: item.sodium || 0, potassium: item.potassium || 0 });
     state.savedFoods.sort((a, b) => a.name.localeCompare(b.name));
@@ -744,6 +777,8 @@
     const body = `
       <div class="field"><label>Name</label><input type="text" id="sf_name" value="${escapeHtml(f.name)}"></div>
       <div class="field" style="margin-top:8px;"><label>Quantity (one serving)</label><input type="text" id="sf_qty" value="${escapeHtml(f.quantity || '')}" placeholder="e.g. 1 egg"></div>
+      <div class="cat-label">Category</div>
+      ${catChipsHtml(f.category, 'data-sfcat')}
       <div class="field-row" style="margin-top:8px;">
         <div class="field"><label>Calories</label><input type="number" id="sf_calories" value="${num('calories')}"></div>
         <div class="field"><label>Protein (g)</label><input type="number" id="sf_protein" value="${num('protein')}"></div>
@@ -765,7 +800,12 @@
       <div class="examples" style="margin-top:10px;">Changes apply to future logs only — foods you've already logged keep their original values.</div>
       <button class="btn primary" id="sf_save" style="margin-top:14px;">Save changes</button>
       <button class="btn danger-text" id="sf_delete" style="width:100%;text-align:center;margin-top:6px;">Delete saved food</button>`;
+    let chosenCat = f.category || '';
     openModal('Edit saved food', body, () => {
+      document.querySelectorAll('[data-sfcat]').forEach(chip => chip.addEventListener('click', () => {
+        chosenCat = chip.dataset.sfcat;
+        document.querySelectorAll('[data-sfcat]').forEach(c => c.classList.toggle('active', c === chip));
+      }));
       $('sf_moreToggle').addEventListener('click', () => {
         const open = $('sf_moreFields').classList.toggle('open');
         $('sf_moreToggle').textContent = open ? 'Hide extra nutrients' : 'More nutrients (carbs, fat, sugar...)';
@@ -775,6 +815,7 @@
         if (!name) { toast('Name can\u2019t be empty'); return; }
         f.name = name;
         f.quantity = $('sf_qty').value;
+        f.category = chosenCat;
         ['calories','protein','fibre','carbs','fat','sugar','satFat','sodium','potassium']
           .forEach(k => { f[k] = Math.max(0, Number($('sf_' + k).value) || 0); });
         state.savedFoods.sort((a, b) => a.name.localeCompare(b.name));
@@ -790,7 +831,7 @@
       list.innerHTML = `<div class="empty-state"><div class="emoji">★</div><p>No saved foods yet.</p><p>Save a food from its edit screen to reuse it here.</p></div>`;
       return;
     }
-    list.innerHTML = state.savedFoods.map(f => {
+    const itemHtml = (f) => {
       const qty = state.savedQty[f.id] || 1;
       return `
       <div class="saved-item">
@@ -807,7 +848,12 @@
           <button class="remove-item" type="button" data-del="${f.id}">✕</button>
         </div>
       </div>`;
-    }).join('');
+    };
+    const groups = CATEGORIES.map(c => [c, state.savedFoods.filter(f => f.category === c)]);
+    groups.push(['Uncategorised', state.savedFoods.filter(f => !CATEGORIES.includes(f.category))]);
+    list.innerHTML = groups.filter(([, items]) => items.length).map(([c, items]) => `
+      <div class="saved-group-head"><h3>${c}</h3><span>${items.length} food${items.length === 1 ? '' : 's'}</span></div>
+      ${items.map(itemHtml).join('')}`).join('');
     list.querySelectorAll('[data-plus]').forEach(b => b.addEventListener('click', () => {
       state.savedQty[b.dataset.plus] = (state.savedQty[b.dataset.plus] || 1) + 1;
       renderSaved();
