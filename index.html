@@ -284,10 +284,13 @@
 
     <section class="screen" id="screen-add">
       <div class="section-head" style="margin-top:18px;"><h2>Log food</h2><span class="hint">Add one or more items</span></div>
-      <div class="examples" style="margin:-4px 0 12px;">Enter values per serving — the servings field multiplies the total when you log it.</div>
+      <div class="examples" style="margin:-4px 0 12px;">Enter values for one serving. <b>Save food</b> keeps it in Saved foods for reuse. <b>Quick add</b> logs it to today only (multiplied by servings).</div>
       <div id="reviewArea"></div>
       <button class="btn ghost" id="addAnotherBtn" style="margin-top:4px;">+ Add another food</button>
-      <button class="btn primary" id="saveReviewBtn" style="margin-top:14px;">Log to today</button>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="btn ghost" id="saveToFoodsBtn" style="flex:1;padding:13px 10px;">★ Save food</button>
+        <button class="btn primary" id="saveReviewBtn" style="flex:1;padding:13px 10px;">+ Quick add</button>
+      </div>
     </section>
 
     <section class="screen" id="screen-history">
@@ -646,6 +649,20 @@
     renderReview();
     toast('Added to today\u2019s log');
     switchScreen('today');
+  });
+
+  // Saves each filled-in food (per-serving values) to Saved foods without logging it.
+  $('saveToFoodsBtn').addEventListener('click', () => {
+    const valid = state.pendingReviewItems.filter(it => it.name.trim());
+    if (!valid.length) { toast('Add a food name first'); return; }
+    valid.forEach(it => saveAsQuickFood({ name: it.name.trim(), quantity: it.quantity || '',
+      calories: Number(it.calories) || 0, protein: Number(it.protein) || 0, fibre: Number(it.fibre) || 0,
+      carbs: Number(it.carbs) || 0, fat: Number(it.fat) || 0, sugar: Number(it.sugar) || 0,
+      satFat: Number(it.satFat) || 0, sodium: Number(it.sodium) || 0, potassium: Number(it.potassium) || 0 }));
+    state.pendingReviewItems = [blankItem()];
+    renderReview();
+    toast(valid.length === 1 ? valid[0].name.trim() + ' saved' : valid.length + ' foods saved');
+    switchScreen('saved');
   });
 
   function openEntryModal(id) {
