@@ -109,6 +109,21 @@
   .primary-tile .dot { width:9px; height:9px; border-radius:50%; margin: 0 auto 7px; }
   .primary-tile .val { font-family: var(--font-display); font-size: 24px; font-weight:600; }
   .primary-tile .unit { font-size: 11px; color: var(--ink-faint); margin-top:2px; }
+  .primary-tile .of { font-size: 11px; color: var(--ink-soft); margin-top:3px; min-height:14px; }
+  .mini-bar { height:5px; border-radius:999px; background: var(--line); margin: 8px 10px 0; overflow:hidden; }
+  .mini-bar-fill { height:100%; border-radius:999px; transition: width .4s ease; }
+  .hit { color: var(--brand) !important; font-weight:700; }
+  .over { color: var(--warn) !important; font-weight:700; }
+
+  .target-group { background: var(--bg-raised); border-radius: var(--radius-md); padding: 4px 14px; box-shadow: var(--shadow); }
+  .target-row { display:flex; align-items:center; gap:12px; padding: 11px 0; border-bottom:1px solid var(--line); }
+  .target-row:last-child { border-bottom:none; }
+  .target-row .t-label { flex:1; }
+  .target-row .t-name { font-size:14.5px; font-weight:600; }
+  .target-row .t-kind { font-size:11px; color: var(--ink-faint); margin-top:1px; }
+  .target-row .t-input { display:flex; align-items:center; gap:6px; width:128px; }
+  .target-row .t-input input { text-align:right; }
+  .target-row .t-unit { font-size:12px; color: var(--ink-soft); width:26px; }
 
   .water-card { background: var(--bg-raised); border-radius: var(--radius-md); padding: 16px; margin-top:10px; box-shadow: var(--shadow); }
   .water-head { display:flex; justify-content:space-between; align-items:baseline; }
@@ -229,13 +244,13 @@
         <div class="ring-meta">
           <div class="row"><span>Target</span><b id="metaTarget">–</b></div>
           <div class="row"><span>Eaten</span><b id="metaEaten">–</b></div>
-          <button class="edit-target" id="editTargetBtn">Edit target</button>
+          <button class="edit-target" id="editTargetBtn">Edit targets</button>
         </div>
       </div>
 
       <div class="primary-grid">
-        <div class="primary-tile"><div class="dot" style="background:var(--protein)"></div><div class="val" id="mProtein">0<span style="font-size:13px;">g</span></div><div class="unit">Protein</div></div>
-        <div class="primary-tile"><div class="dot" style="background:var(--fibre)"></div><div class="val" id="mFibre">0<span style="font-size:13px;">g</span></div><div class="unit">Fibre</div></div>
+        <div class="primary-tile"><div class="dot" style="background:var(--protein)"></div><div class="val" id="mProtein">0<span style="font-size:13px;">g</span></div><div class="unit">Protein</div><div class="of" id="ofProtein"></div><div class="mini-bar" id="barWrapProtein"><div class="mini-bar-fill" id="barProtein" style="width:0%;background:var(--protein)"></div></div></div>
+        <div class="primary-tile"><div class="dot" style="background:var(--fibre)"></div><div class="val" id="mFibre">0<span style="font-size:13px;">g</span></div><div class="unit">Fibre</div><div class="of" id="ofFibre"></div><div class="mini-bar" id="barWrapFibre"><div class="mini-bar-fill" id="barFibre" style="width:0%;background:var(--fibre)"></div></div></div>
       </div>
 
       <div class="water-card">
@@ -254,12 +269,12 @@
       <button class="more-toggle" id="moreToggleBtn"><span>More nutrients</span><span class="chev">▾</span></button>
       <div class="secondary-wrap" id="secondaryWrap">
         <div class="secondary-grid">
-          <div class="secondary-tile"><div class="val" id="mCarbs">0</div><div class="unit">g carbs</div></div>
-          <div class="secondary-tile"><div class="val" id="mFat">0</div><div class="unit">g fat</div></div>
-          <div class="secondary-tile"><div class="val" id="mSugar">0</div><div class="unit">g sugar</div></div>
-          <div class="secondary-tile"><div class="val" id="mSatFat">0</div><div class="unit">g sat. fat</div></div>
-          <div class="secondary-tile"><div class="val" id="mSodium">0</div><div class="unit">mg sodium</div></div>
-          <div class="secondary-tile"><div class="val" id="mPotassium">0</div><div class="unit">mg potassium</div></div>
+          <div class="secondary-tile"><div class="val" id="mCarbs">0</div><div class="unit">g carbs</div><div class="unit" id="ofCarbs"></div></div>
+          <div class="secondary-tile"><div class="val" id="mFat">0</div><div class="unit">g fat</div><div class="unit" id="ofFat"></div></div>
+          <div class="secondary-tile"><div class="val" id="mSugar">0</div><div class="unit">g sugar</div><div class="unit" id="ofSugar"></div></div>
+          <div class="secondary-tile"><div class="val" id="mSatFat">0</div><div class="unit">g sat. fat</div><div class="unit" id="ofSatFat"></div></div>
+          <div class="secondary-tile"><div class="val" id="mSodium">0</div><div class="unit">mg sodium</div><div class="unit" id="ofSodium"></div></div>
+          <div class="secondary-tile"><div class="val" id="mPotassium">0</div><div class="unit">mg potassium</div><div class="unit" id="ofPotassium"></div></div>
         </div>
       </div>
 
@@ -280,6 +295,15 @@
       <div id="historyList"></div>
     </section>
 
+    <section class="screen" id="screen-targets">
+      <div class="section-head" style="margin-top:18px;"><h2>Daily targets</h2><span class="hint">Leave blank for no target</span></div>
+      <div class="section-head" style="margin-top:6px;"><h2 style="font-size:14px;color:var(--ink-soft);">Main</h2></div>
+      <div class="target-group" id="targetsMain"></div>
+      <div class="section-head"><h2 style="font-size:14px;color:var(--ink-soft);">Other nutrients</h2></div>
+      <div class="target-group" id="targetsOther"></div>
+      <button class="btn primary" id="saveTargetsBtn" style="margin-top:18px;">Save targets</button>
+    </section>
+
     <section class="screen" id="screen-saved">
       <div class="section-head" style="margin-top:18px;"><h2>Saved foods</h2><span class="hint">Tap + to log</span></div>
       <div id="savedList"></div>
@@ -292,6 +316,7 @@
       <button class="tab" data-screen="add"><span class="ic">+</span><span class="lb">Add Food</span></button>
       <button class="tab" data-screen="history"><span class="ic">▤</span><span class="lb">History</span></button>
       <button class="tab" data-screen="saved"><span class="ic">★</span><span class="lb">Saved</span></button>
+      <button class="tab" data-screen="targets"><span class="ic">◎</span><span class="lb">Targets</span></button>
     </div>
   </nav>
 </div>
@@ -371,6 +396,7 @@
   const state = {
     calorieTarget: profile.calorieTarget || 2000,
     waterTarget: profile.waterTarget || 2000,
+    targets: Object.assign({ protein: 0, fibre: 0, carbs: 0, fat: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0 }, profile.targets || {}),
     days: store.get('days', {}),
     savedFoods: store.get('saved', []),
     savedQty: {},
@@ -381,7 +407,35 @@
   function todayEntries() { return (state.days[todayKey()] && state.days[todayKey()].entries) || []; }
   function todayWater() { return (state.days[todayKey()] && state.days[todayKey()].water) || 0; }
   function saveDays() { store.set('days', state.days); }
-  function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget, waterTarget: state.waterTarget }); }
+  function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget, waterTarget: state.waterTarget, targets: state.targets }); }
+
+  // One list describing every tracked nutrient. kind: 'goal' = aim to reach it,
+  // 'limit' = try to stay under it, 'neutral' = just a reference number.
+  const NUTRIENTS = [
+    { key: 'calories',  label: 'Calories',      unit: 'kcal', kind: 'limit',   group: 'main' },
+    { key: 'protein',   label: 'Protein',       unit: 'g',    kind: 'goal',    group: 'main' },
+    { key: 'fibre',     label: 'Fibre',         unit: 'g',    kind: 'goal',    group: 'main' },
+    { key: 'water',     label: 'Water',         unit: 'ml',   kind: 'goal',    group: 'main' },
+    { key: 'carbs',     label: 'Carbohydrates', unit: 'g',    kind: 'neutral', group: 'other' },
+    { key: 'fat',       label: 'Fat',           unit: 'g',    kind: 'neutral', group: 'other' },
+    { key: 'sugar',     label: 'Sugar',         unit: 'g',    kind: 'limit',   group: 'other' },
+    { key: 'satFat',    label: 'Saturated fat', unit: 'g',    kind: 'limit',   group: 'other' },
+    { key: 'sodium',    label: 'Sodium',        unit: 'mg',   kind: 'limit',   group: 'other' },
+    { key: 'potassium', label: 'Potassium',     unit: 'mg',   kind: 'goal',    group: 'other' },
+  ];
+  const KIND_TEXT = { goal: 'Aim to reach', limit: 'Stay under', neutral: 'Reference' };
+  function getTarget(key) {
+    if (key === 'calories') return state.calorieTarget || 0;
+    if (key === 'water') return state.waterTarget || 0;
+    return Number(state.targets[key]) || 0;
+  }
+  function targetClass(key, value) {
+    const n = NUTRIENTS.find(x => x.key === key); const t = getTarget(key);
+    if (!t || !n) return '';
+    if (n.kind === 'goal' && value >= t) return 'hit';
+    if (n.kind === 'limit' && value > t) return 'over';
+    return '';
+  }
   function saveSaved() { store.set('saved', state.savedFoods); }
 
   function computeTotals(entries) {
@@ -417,6 +471,22 @@
     $('mSatFat').textContent = round(totals.satFat);
     $('mSodium').textContent = roundInt(totals.sodium);
     $('mPotassium').textContent = roundInt(totals.potassium);
+
+    // Main tiles: "of 120g" + mini progress bar (hidden when no target set)
+    [['protein', 'Protein'], ['fibre', 'Fibre']].forEach(([key, id]) => {
+      const t = getTarget(key); const v = totals[key];
+      const of = $('of' + id);
+      of.textContent = t ? (v >= t ? '✓ ' : '') + 'of ' + roundInt(t) + 'g' : '';
+      of.className = 'of ' + targetClass(key, v);
+      $('barWrap' + id).style.display = t ? '' : 'none';
+      $('bar' + id).style.width = t ? Math.min(100, v / t * 100) + '%' : '0%';
+    });
+    // Secondary tiles: small "/ target" line, coloured if hit or over
+    [['carbs','Carbs','g'],['fat','Fat','g'],['sugar','Sugar','g'],['satFat','SatFat','g'],['sodium','Sodium','mg'],['potassium','Potassium','mg']].forEach(([key, id, u]) => {
+      const t = getTarget(key); const el = $('of' + id);
+      el.textContent = t ? '/ ' + roundInt(t) + u : '';
+      el.className = 'unit ' + targetClass(key, totals[key]);
+    });
 
     const water = todayWater();
     const waterTarget = state.waterTarget || 0;
@@ -718,20 +788,33 @@
     el.querySelectorAll('.day-head').forEach(h => h.addEventListener('click', () => { $('entries-' + h.dataset.date).classList.toggle('open'); }));
   }
 
-  $('editTargetBtn').addEventListener('click', () => {
-    openModal('Daily calorie target',
-      `<div class="field"><label>Calories per day</label><input type="number" id="targetInput" value="${state.calorieTarget || ''}"></div>
-       <button class="btn primary" id="targetSaveBtn" style="margin-top:14px;">Save target</button>`,
-      () => {
-        $('targetSaveBtn').addEventListener('click', () => {
-          const v = Number($('targetInput').value);
-          if (!v || v <= 0) { toast('Enter a valid number'); return; }
-          saveTarget(v); closeModal(); toast('Target updated');
-        });
-      });
+  $('editTargetBtn').addEventListener('click', () => switchScreen('targets'));
+
+  function targetRowHtml(n) {
+    const t = getTarget(n.key);
+    return `<div class="target-row">
+      <div class="t-label"><div class="t-name">${n.label}</div><div class="t-kind">${KIND_TEXT[n.kind]}</div></div>
+      <div class="t-input"><input type="number" inputmode="decimal" min="0" data-target="${n.key}" value="${t ? round(t) : ''}" placeholder="—"><span class="t-unit">${n.unit}</span></div>
+    </div>`;
+  }
+  function renderTargets() {
+    $('targetsMain').innerHTML = NUTRIENTS.filter(n => n.group === 'main').map(targetRowHtml).join('');
+    $('targetsOther').innerHTML = NUTRIENTS.filter(n => n.group === 'other').map(targetRowHtml).join('');
+  }
+  $('saveTargetsBtn').addEventListener('click', () => {
+    document.querySelectorAll('[data-target]').forEach(inp => {
+      const v = Math.max(0, Number(inp.value) || 0);
+      const key = inp.dataset.target;
+      if (key === 'calories') state.calorieTarget = v;
+      else if (key === 'water') state.waterTarget = v;
+      else state.targets[key] = v;
+    });
+    saveProfile(); renderToday(); renderTargets();
+    toast('Targets saved');
   });
 
   onScreenEnter = (name) => {
+    if (name === 'targets') renderTargets();
     if (name === 'history') renderHistory();
     if (name === 'saved') renderSaved();
   };
