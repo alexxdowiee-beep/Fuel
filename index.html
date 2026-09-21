@@ -85,6 +85,19 @@
   }
   header.topbar .brand { font-family: var(--font-display); font-weight: 600; font-size: 21px; letter-spacing: -0.01em; }
   header.topbar .subline { font-size: 13px; color: var(--ink-soft); }
+  .day-nav { display:flex; align-items:center; gap:2px; }
+  .day-nav .subline { cursor:pointer; padding: 4px 2px; text-align:center; }
+  .day-nav .subline.past { color: var(--accent); font-weight:700; }
+  .day-arrow { background:none; border:none; color: var(--ink-soft); font-size:22px; line-height:1; padding:2px 8px; cursor:pointer; }
+  .day-arrow:disabled { opacity:.25; cursor:default; }
+  .day-banner { background: var(--brand-soft); color: var(--brand); border-radius: var(--radius-sm); padding: 9px 12px; font-size:12.5px; font-weight:700; margin: 12px 0 0; display:none; justify-content:space-between; align-items:center; gap:8px; }
+  .day-banner.show { display:flex; }
+  .day-banner button { background:none; border:none; color: var(--brand); font-weight:700; text-decoration:underline; font-size:12.5px; cursor:pointer; padding:0; }
+  .water-btn.minus { flex:0 0 auto; padding:9px 12px; background:transparent; border:1.5px solid var(--line); color: var(--ink-soft); }
+  .meal-head { cursor:pointer; user-select:none; }
+  .meal-head .chev { display:inline-block; font-size:10px; color: var(--ink-faint); margin-right:6px; transition: transform .2s ease; }
+  .meal-head.collapsed .chev { transform: rotate(-90deg); }
+  .meal-head.collapsed + .log-list { display:none; }
 
   main { flex: 1; padding: 0 20px 100px; overflow-x: hidden; }
   .screen { display: none; }
@@ -241,7 +254,11 @@
 <div class="app">
   <header class="topbar">
     <span class="brand">Fuel</span>
-    <span class="subline" id="topSubline"></span>
+    <div class="day-nav">
+      <button class="day-arrow" id="dayPrev" aria-label="Previous day">‹</button>
+      <span class="subline" id="topSubline"></span>
+      <button class="day-arrow" id="dayNext" aria-label="Next day">›</button>
+    </div>
   </header>
 
   <main>
@@ -252,7 +269,7 @@
             <circle class="ring-track" cx="59" cy="59" r="50"></circle>
             <circle class="ring-fill" id="ringFill" cx="59" cy="59" r="50" stroke-dasharray="314" stroke-dashoffset="314"></circle>
           </svg>
-          <div class="ring-center"><div class="num" id="ringRemaining">–</div><div class="lbl">kcal left</div></div>
+          <div class="ring-center"><div class="num" id="ringRemaining">–</div><div class="lbl" id="ringLbl">kcal left</div></div>
         </div>
         <div class="ring-meta">
           <div class="row"><span>Target</span><b id="metaTarget">–</b></div>
@@ -275,6 +292,7 @@
         <div class="water-actions">
           <button class="water-btn" data-water="250">+250ml</button>
           <button class="water-btn" data-water="500">+500ml</button>
+          <button class="water-btn minus" data-water="-250" aria-label="Remove 250ml">−250</button>
           <button class="water-edit" id="waterEditBtn">Edit</button>
         </div>
       </div>
@@ -291,13 +309,14 @@
         </div>
       </div>
 
-      <div class="section-head"><h2>Today's food</h2><span class="hint" id="todayCount"></span></div>
+      <div class="section-head"><h2 id="foodHead">Today's food</h2><span class="hint" id="todayCount"></span></div>
       <div class="log-list" id="todayList"></div>
     </section>
 
     <section class="screen" id="screen-add">
+      <div class="day-banner" data-banner><span data-banner-text></span><button type="button" data-banner-today>Back to today</button></div>
       <div class="section-head" style="margin-top:18px;"><h2>Log food</h2><span class="hint">Add one or more items</span></div>
-      <div class="examples" style="margin:-4px 0 12px;">Enter values for one serving. <b>Save food</b> keeps it in Saved foods under the chosen meal. <b>Quick add</b> logs it to today only, under that meal (multiplied by servings).</div>
+      <div class="examples" style="margin:-4px 0 12px;">Enter values for one serving. <b>Save food</b> keeps it in Saved foods under the chosen meal. <b>Quick add</b> logs it to the day shown at the top, under that meal (multiplied by servings).</div>
       <div id="reviewArea"></div>
       <button class="btn ghost" id="addAnotherBtn" style="margin-top:4px;">+ Add another food</button>
       <div style="display:flex;gap:10px;margin-top:14px;">
@@ -321,6 +340,7 @@
     </section>
 
     <section class="screen" id="screen-saved">
+      <div class="day-banner" data-banner><span data-banner-text></span><button type="button" data-banner-today>Back to today</button></div>
       <div class="section-head" style="margin-top:18px;"><h2>Saved foods</h2><span class="hint">Tap a food to edit</span></div>
       <div id="savedList"></div>
     </section>
@@ -420,10 +440,34 @@
     savedQty: {},
     pendingReviewItems: [],
     secondaryOpen: false,
+    collapsedMeals: store.get('collapsedMeals', []),
   };
 
-  function todayEntries() { return (state.days[todayKey()] && state.days[todayKey()].entries) || []; }
-  function todayWater() { return (state.days[todayKey()] && state.days[todayKey()].water) || 0; }
+  // The day shown on Today (and logged to from Add Food / Saved). null = the real today,
+  // so the app rolls over to a new day by itself if left open past midnight.
+  state.viewKey = null;
+  function activeKey() { return state.viewKey || todayKey(); }
+  function isViewingToday() { return activeKey() === todayKey(); }
+  function shiftKey(key, delta) {
+    const [y, m, d] = key.split('-').map(Number);
+    const dt = new Date(y, m - 1, d + delta);
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  }
+  // Word used in messages: "today", "yesterday" or a date.
+  function dayWord() { const l = fmtDateLabel(activeKey()); return (l === 'Today' || l === 'Yesterday') ? l.toLowerCase() : l; }
+  function goToDay(key) {
+    state.viewKey = (key >= todayKey()) ? null : key;
+    renderToday(); renderDayBanners();
+  }
+  function renderDayBanners() {
+    document.querySelectorAll('[data-banner]').forEach(b => {
+      b.classList.toggle('show', !isViewingToday());
+      b.querySelector('[data-banner-text]').textContent = 'Logging to ' + fmtDateLabel(activeKey());
+    });
+  }
+
+  function todayEntries() { return (state.days[activeKey()] && state.days[activeKey()].entries) || []; }
+  function todayWater() { return (state.days[activeKey()] && state.days[activeKey()].water) || 0; }
   function saveDays() { store.set('days', state.days); }
   function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget, waterTarget: state.waterTarget, targets: state.targets }); }
 
@@ -467,14 +511,24 @@
   }
 
   function renderToday() {
-    $('topSubline').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    const viewingToday = isViewingToday();
+    const [vy, vm, vd] = activeKey().split('-').map(Number);
+    const dateText = new Date(vy, vm - 1, vd).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    $('topSubline').textContent = viewingToday ? dateText : fmtDateLabel(activeKey()) === 'Yesterday' ? 'Yesterday' : dateText;
+    $('topSubline').classList.toggle('past', !viewingToday);
+    $('topSubline').title = viewingToday ? '' : 'Tap to go back to today';
+    $('dayNext').disabled = viewingToday;
+    const label = fmtDateLabel(activeKey());
+    $('foodHead').textContent = label === 'Today' ? "Today's food" : label === 'Yesterday' ? "Yesterday's food" : 'Food · ' + label;
     const entries = todayEntries();
     const totals = computeTotals(entries);
     const target = state.calorieTarget || 0;
     const remaining = Math.round(target - totals.calories);
     $('metaTarget').textContent = target ? roundInt(target) + ' kcal' : 'Not set';
     $('metaEaten').textContent = roundInt(totals.calories) + ' kcal';
-    $('ringRemaining').textContent = target ? remaining : '–';
+    const over = target && remaining < 0;
+    $('ringRemaining').textContent = target ? Math.abs(remaining) : '–';
+    $('ringLbl').textContent = over ? 'kcal over' : 'kcal left';
 
     const pct = target ? Math.max(0, Math.min(1, totals.calories / target)) : 0;
     const ring = $('ringFill');
@@ -494,7 +548,7 @@
     [['protein', 'Protein'], ['fibre', 'Fibre']].forEach(([key, id]) => {
       const t = getTarget(key); const v = totals[key];
       const of = $('of' + id);
-      of.textContent = t ? (v >= t ? '✓ ' : '') + 'of ' + roundInt(t) + 'g' : '';
+      of.textContent = !t ? '' : v >= t ? '✓ ' + roundInt(t) + 'g target reached' : round(t - v) + 'g to go of ' + roundInt(t) + 'g';
       of.className = 'of ' + targetClass(key, v);
       $('barWrap' + id).style.display = t ? '' : 'none';
       $('bar' + id).style.width = t ? Math.min(100, v / t * 100) + '%' : '0%';
@@ -514,7 +568,7 @@
     const list = $('todayList');
     $('todayCount').textContent = entries.length ? entries.length + ' item' + (entries.length === 1 ? '' : 's') : '';
     if (!entries.length) {
-      list.innerHTML = `<div class="empty-state"><div class="emoji">🥣</div><p>Nothing logged yet today.</p><p>Head to Add Food to get started.</p></div>`;
+      list.innerHTML = `<div class="empty-state"><div class="emoji">🥣</div><p>${viewingToday ? 'Nothing logged yet today.' : 'Nothing logged for this day.'}</p><p>Head to Add Food to get started.</p></div>`;
       return;
     }
     const sorted = [...entries].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
@@ -530,26 +584,33 @@
       const items = sorted.filter(e => entryCategory(e) === c);
       if (!items.length) return '';
       const kcal = items.reduce((sum, e) => sum + (Number(e.calories) || 0), 0);
-      return `<div class="meal-head"><h3>${c}</h3><span>${roundInt(kcal)} kcal</span></div>
+      const collapsed = state.collapsedMeals.includes(c);
+      return `<div class="meal-head${collapsed ? ' collapsed' : ''}" data-meal="${c}"><h3><span class="chev">▾</span>${c}${collapsed ? ` <span style="font-size:11.5px;color:var(--ink-faint);font-weight:600;">· ${items.length} item${items.length === 1 ? '' : 's'}</span>` : ''}</h3><span>${roundInt(kcal)} kcal</span></div>
         <div class="log-list">${items.map(itemHtml).join('')}</div>`;
     }).join('');
     list.querySelectorAll('.log-item').forEach(el => el.addEventListener('click', () => openEntryModal(el.dataset.id)));
+    list.querySelectorAll('.meal-head').forEach(h => h.addEventListener('click', () => {
+      const c = h.dataset.meal;
+      state.collapsedMeals = state.collapsedMeals.includes(c) ? state.collapsedMeals.filter(x => x !== c) : state.collapsedMeals.concat(c);
+      store.set('collapsedMeals', state.collapsedMeals);
+      renderToday();
+    }));
   }
 
   function addEntries(newItems) {
-    const k = todayKey();
+    const k = activeKey();
     if (!state.days[k]) state.days[k] = { date: k, entries: [] };
     state.days[k].entries = state.days[k].entries.concat(newItems);
     saveDays(); renderToday();
   }
   function updateEntry(id, patch) {
-    const k = todayKey();
+    const k = activeKey();
     if (!state.days[k]) return;
     state.days[k].entries = state.days[k].entries.map(e => e.id === id ? { ...e, ...patch } : e);
     saveDays(); renderToday();
   }
   function deleteEntry(id) {
-    const k = todayKey();
+    const k = activeKey();
     if (!state.days[k]) return;
     state.days[k].entries = state.days[k].entries.filter(e => e.id !== id);
     saveDays(); renderToday();
@@ -557,24 +618,29 @@
   function saveTarget(val) { state.calorieTarget = val; saveProfile(); renderToday(); }
 
   function addWater(ml) {
-    const k = todayKey();
+    const k = activeKey();
     if (!state.days[k]) state.days[k] = { date: k, entries: [] };
-    state.days[k].water = (state.days[k].water || 0) + ml;
+    state.days[k].water = Math.max(0, (state.days[k].water || 0) + ml);
     saveDays(); renderToday();
   }
   function setWater(ml, target) {
-    const k = todayKey();
+    const k = activeKey();
     if (!state.days[k]) state.days[k] = { date: k, entries: [] };
     state.days[k].water = Math.max(0, ml);
     state.waterTarget = Math.max(0, target);
     saveDays(); saveProfile(); renderToday();
   }
+  $('dayPrev').addEventListener('click', () => goToDay(shiftKey(activeKey(), -1)));
+  $('dayNext').addEventListener('click', () => goToDay(shiftKey(activeKey(), 1)));
+  $('topSubline').addEventListener('click', () => { if (!isViewingToday()) goToDay(todayKey()); });
+  document.querySelectorAll('[data-banner-today]').forEach(b => b.addEventListener('click', () => goToDay(todayKey())));
+
   document.querySelectorAll('.water-btn[data-water]').forEach(b => {
     b.addEventListener('click', () => addWater(Number(b.dataset.water)));
   });
   $('waterEditBtn').addEventListener('click', () => {
     openModal('Water',
-      `<div class="field"><label>Today's water (ml)</label><input type="number" id="waterTodayInput" value="${roundInt(todayWater())}"></div>
+      `<div class="field"><label>Water for this day (ml)</label><input type="number" id="waterTodayInput" value="${roundInt(todayWater())}"></div>
        <div class="field" style="margin-top:8px;"><label>Daily target (ml)</label><input type="number" id="waterTargetInput" value="${roundInt(state.waterTarget)}"></div>
        <button class="btn primary" id="waterSaveBtn" style="margin-top:14px;">Save</button>`,
       () => {
@@ -699,7 +765,7 @@
     addEntries(entries);
     state.pendingReviewItems = [blankItem()];
     renderReview();
-    toast('Added to today\u2019s log');
+    toast('Added to ' + dayWord());
     switchScreen('today');
   });
 
@@ -792,7 +858,7 @@
       category: CATEGORIES.includes(f.category) ? f.category : defaultCategory(),
       time: new Date().toISOString(), source: 'saved' }]);
     state.savedQty[savedId] = 1;
-    toast((qty > 1 ? qty + '× ' : '') + f.name + ' added to today');
+    toast((qty > 1 ? qty + '× ' : '') + f.name + ' added to ' + dayWord());
     renderSaved();
   }
   function openSavedFoodModal(id) {
