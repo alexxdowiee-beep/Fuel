@@ -1,6 +1,6 @@
 {
-  "name": "Harvest — Nutrition Log",
-  "short_name": "Harvest",
+  "name": "Fuel — Nutrition Log",
+  "short_name": "Fuel",
   "description": "A simple personal food and nutrition tracker",
   "start_url": "./index.html",
   "scope": "./",
