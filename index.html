@@ -190,6 +190,9 @@
   .day-entries { margin-top:10px; padding-top:10px; border-top:1px solid var(--line); display:none; }
   .day-entries.open { display:block; }
   .day-entries .e { display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0; color: var(--ink-soft); }
+  .day-entries .e.tappable { cursor:pointer; border-bottom:1px solid var(--line); }
+  .day-entries .e.tappable:last-child { border-bottom:none; }
+  .day-entries .e.tappable:active { color: var(--brand); }
 
   .saved-item { display:flex; flex-direction:column; gap:9px; padding: 13px 2px; border-bottom: 1px solid var(--line); }
   .saved-item .info { flex:1; }
@@ -1036,11 +1039,19 @@
             <span><b>${roundInt(t.sodium)}mg</b> sodium</span>
             <span><b>${roundInt(t.potassium)}mg</b> potassium</span>
           </div>
-          ${(day.entries || []).map(e => `<div class="e"><span>${escapeHtml(e.name)}${e.quantity ? ' · ' + escapeHtml(e.quantity) : ''}</span><span>${roundInt(e.calories)} kcal</span></div>`).join('') || '<div class="e">No items</div>'}
+          ${(day.entries || []).map(e => `<div class="e tappable" data-eid="${e.id}" data-eday="${day.date}"><span>${escapeHtml(e.name)}${e.quantity ? ' · ' + escapeHtml(e.quantity) : ''}</span><span>${roundInt(e.calories)} kcal</span></div>`).join('') || '<div class="e">No items</div>'}
         </div>
       </div>`;
     }).join('');
     el.querySelectorAll('.day-head').forEach(h => h.addEventListener('click', () => { $('entries-' + h.dataset.date).classList.toggle('open'); }));
+    // Tapping an entry in History jumps to that day and opens it for editing -
+    // same sheet as on the Today screen, so there is only one way to edit food.
+    el.querySelectorAll('.e[data-eid]').forEach(row => row.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      goToDay(row.dataset.eday);
+      switchScreen('today');
+      openEntryModal(row.dataset.eid);
+    }));
   }
 
   $('editTargetBtn').addEventListener('click', () => switchScreen('targets'));
