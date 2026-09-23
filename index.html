@@ -308,7 +308,7 @@
 <body>
 <div class="app">
   <header class="topbar">
-    <span class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="var(--brand)" stroke-linecap="round"><path d="M20 3.5 A16.5 16.5 0 0 1 35.6 14.6" stroke-width="4.2"/><path d="M36.2 20.8 A16.5 16.5 0 0 1 24.6 35.9" stroke-width="3.4"/><path d="M17.2 36.2 A16.5 16.5 0 0 1 4.3 25.4" stroke-width="4"/><path d="M4.1 17.4 A16.5 16.5 0 0 1 10.6 6.9" stroke-width="2.8"/></g><path d="M20.6 8.8 L28.4 8.8 L24.2 17.2 L29.2 17.2 L14.4 32.4 L17.6 22.4 L12.2 22.4 Z" fill="var(--ink)"/></svg>Fuel</span>
+    <span class="brand"><svg viewBox="68 68 376 376" aria-hidden="true"><path d="M390.2,154.9 A168,168 0 0 1 179.7,405.7 M121.8,357.1 A168,168 0 0 1 332.3,106.3" fill="none" stroke="var(--brand)" stroke-width="30"/><g fill="var(--ink)" transform="translate(256 256) skewX(-12) translate(-256 -256) translate(173.0 156)"><polygon points="78,0 156,0 116,74 176,74 40,200 72,114 10,114"/></g></svg>Fuel</span>
     <div class="day-nav">
       <button class="day-arrow" id="dayPrev" aria-label="Previous day">‹</button>
       <span class="subline" id="topSubline"></span>
@@ -392,6 +392,8 @@
       <div class="section-head"><h2 style="font-size:14px;color:var(--ink-soft);">Other nutrients</h2></div>
       <div class="target-group" id="targetsOther"></div>
       <button class="btn primary" id="saveTargetsBtn" style="margin-top:18px;">Save targets</button>
+      <div class="section-head"><h2>Backup</h2></div>
+      <div id="backupStatus"></div>
     </section>
 
     <section class="screen" id="screen-saved">
@@ -781,6 +783,16 @@
       `<button type="button" class="cat-chip${c === selected ? ' active' : ''}" ${attr}="${c}">${c}</button>`).join('')}</div>`;
   }
 
+  // 0.5 -> "½", 1.5 -> "1½", 2 -> "2"
+  function fmtQty(q) {
+    q = Number(q) || 1;
+    const whole = Math.floor(q), half = Math.abs(q - whole - 0.5) < 0.01;
+    if (half) return (whole ? whole : '') + '½';
+    return String(Math.round(q * 100) / 100);
+  }
+  // Nutrition can't be negative — a stray "-" shouldn't subtract calories.
+  const nonNeg = (v) => Math.max(0, Number(v) || 0);
+
   function blankItem() { return { name: '', quantity: '', servings: 1, category: defaultCategory(), calories: 0, protein: 0, fibre: 0, carbs: 0, fat: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0, _moreOpen: false }; }
   function renderReview() {
     if (!state.pendingReviewItems.length) state.pendingReviewItems.push(blankItem());
@@ -790,7 +802,7 @@
       inp.addEventListener('input', () => {
         const idx = Number(inp.closest('.review-card').dataset.idx);
         const field = inp.dataset.field;
-        state.pendingReviewItems[idx][field] = (field === 'name' || field === 'quantity') ? inp.value : Number(inp.value);
+        state.pendingReviewItems[idx][field] = (field === 'name' || field === 'quantity') ? inp.value : nonNeg(inp.value);
       });
     });
     area.querySelectorAll('.remove-item').forEach(btn => {
@@ -826,7 +838,7 @@
       </div>
       <div class="field-row" style="margin-top:0;">
         <input type="text" data-field="quantity" value="${escapeHtml(it.quantity)}" placeholder="Quantity, e.g. 1 slice" style="flex:2;min-width:110px;">
-        <div class="field" style="max-width:78px;"><label>Servings</label><input type="number" data-field="servings" value="${it.servings || 1}" min="1" step="1"></div>
+        <div class="field" style="max-width:78px;"><label>Servings</label><input type="number" data-field="servings" value="${it.servings || 1}" min="0.5" step="0.5" inputmode="decimal"></div>
       </div>
       <div class="cat-label">Meal</div>
       ${catChipsHtml(it.category, 'data-cat')}
@@ -856,13 +868,14 @@
     if (!valid.length) { toast('Add a food name first'); return; }
     const now = new Date().toISOString();
     const entries = valid.map(it => {
-      const servings = Number(it.servings) || 1;
-      const qtyLabel = servings > 1 ? (it.quantity ? `${it.quantity} × ${servings}` : `× ${servings}`) : (it.quantity || '');
+      const servings = Number(it.servings) > 0 ? Number(it.servings) : 1;
+      const qtyLabel = servings !== 1 ? (it.quantity ? `${it.quantity} × ${fmtQty(servings)}` : `× ${fmtQty(servings)}`) : (it.quantity || '');
       return { id: uid_(), name: it.name, quantity: qtyLabel,
         calories: (Number(it.calories) || 0) * servings, protein: (Number(it.protein) || 0) * servings, fibre: (Number(it.fibre) || 0) * servings,
         carbs: (Number(it.carbs) || 0) * servings, fat: (Number(it.fat) || 0) * servings, sugar: (Number(it.sugar) || 0) * servings,
         satFat: (Number(it.satFat) || 0) * servings, sodium: (Number(it.sodium) || 0) * servings, potassium: (Number(it.potassium) || 0) * servings,
-        category: it.category || defaultCategory(), time: now, source: 'manual' };
+        category: it.category || defaultCategory(), time: now, source: 'manual',
+        servings: servings, baseQuantity: it.quantity || '' };
     });
     addEntries(entries);
     state.pendingReviewItems = [blankItem()];
@@ -891,9 +904,9 @@
     let chosenMeal = entryCategory(e);
     const readFields = () => ({
       name: $('em_name').value, quantity: $('em_qty').value, category: chosenMeal,
-      calories: Number($('em_cal').value) || 0, protein: Number($('em_pro').value) || 0, fibre: Number($('em_fib').value) || 0,
-      carbs: Number($('em_carb').value) || 0, fat: Number($('em_fat').value) || 0, sugar: Number($('em_sugar').value) || 0,
-      satFat: Number($('em_satfat').value) || 0, sodium: Number($('em_sodium').value) || 0, potassium: Number($('em_potassium').value) || 0,
+      calories: nonNeg($('em_cal').value), protein: nonNeg($('em_pro').value), fibre: nonNeg($('em_fib').value),
+      carbs: nonNeg($('em_carb').value), fat: nonNeg($('em_fat').value), sugar: nonNeg($('em_sugar').value),
+      satFat: nonNeg($('em_satfat').value), sodium: nonNeg($('em_sodium').value), potassium: nonNeg($('em_potassium').value),
     });
     const body = `
       <div class="field"><label>Name</label><input type="text" id="em_name" value="${escapeHtml(e.name)}"></div>
@@ -935,8 +948,20 @@
         closeModal(); toast('Updated');
       });
       $('em_saveFood').addEventListener('click', () => {
-        saveAsQuickFood(readFields());
-        toast('Saved to quick foods');
+        // The entry holds the totals for however many servings were logged.
+        // A saved food is ONE serving, so divide back down first.
+        const f = readFields();
+        let n = Number(e.servings) || 0, base = e.baseQuantity;
+        if (!n) {   // logged before servings were stored: read "… × 3" off the label
+          const m = String(f.quantity || '').match(/^(.*?)\s*×\s*(\d+(?:\.\d+)?|\d*½)\s*$/);
+          if (m) { n = m[2].includes('½') ? (parseInt(m[2], 10) || 0) + 0.5 : Number(m[2]); base = m[1]; }
+        }
+        if (n > 0 && n !== 1) {
+          ['calories','protein','fibre','carbs','fat','sugar','satFat','sodium','potassium'].forEach(k => { f[k] = f[k] / n; });
+          f.quantity = base !== undefined ? base : f.quantity;
+        }
+        saveAsQuickFood(f);
+        toast(n > 0 && n !== 1 ? `Saved as 1 serving (÷${fmtQty(n)})` : 'Saved to quick foods');
       });
       $('em_delete').addEventListener('click', () => { deleteEntry(id); closeModal(); toast('Removed'); });
     });
@@ -953,14 +978,14 @@
     const f = state.savedFoods.find(x => x.id === savedId);
     if (!f) return;
     const qty = state.savedQty[savedId] || 1;
-    const qtyLabel = qty > 1 ? (f.quantity ? `${f.quantity} × ${qty}` : `× ${qty}`) : (f.quantity || '');
+    const qtyLabel = qty !== 1 ? (f.quantity ? `${f.quantity} × ${fmtQty(qty)}` : `× ${fmtQty(qty)}`) : (f.quantity || '');
     addEntries([{ id: uid_(), name: f.name, quantity: qtyLabel, calories: (f.calories || 0) * qty,
       protein: (f.protein || 0) * qty, fibre: (f.fibre || 0) * qty, carbs: (f.carbs || 0) * qty, fat: (f.fat || 0) * qty,
       sugar: (f.sugar || 0) * qty, satFat: (f.satFat || 0) * qty, sodium: (f.sodium || 0) * qty, potassium: (f.potassium || 0) * qty,
       category: CATEGORIES.includes(f.category) ? f.category : defaultCategory(),
-      time: new Date().toISOString(), source: 'saved' }]);
+      time: new Date().toISOString(), source: 'saved', servings: qty, baseQuantity: f.quantity || '' }]);
     state.savedQty[savedId] = 1;
-    toast((qty > 1 ? qty + '× ' : '') + f.name + ' added to ' + dayWord());
+    toast((qty !== 1 ? fmtQty(qty) + '× ' : '') + f.name + ' added to ' + dayWord());
     renderSaved();
   }
   function openSavedFoodModal(id) {
@@ -1034,7 +1059,7 @@
         <div class="saved-item-controls">
           <div class="qty-stepper">
             <button class="qty-btn" type="button" data-minus="${f.id}">−</button>
-            <span class="qty-val">${qty}</span>
+            <span class="qty-val">${fmtQty(qty)}</span>
             <button class="qty-btn" type="button" data-plus="${f.id}">+</button>
           </div>
           <button class="add-log-btn" type="button" data-add="${f.id}">Add · ${roundInt(f.calories * qty)} kcal</button>
@@ -1048,15 +1073,20 @@
       <div class="saved-group-head"><h3>${c}</h3><span>${items.length} food${items.length === 1 ? '' : 's'}</span></div>
       ${items.map(itemHtml).join('')}`).join('');
     list.querySelectorAll('[data-plus]').forEach(b => b.addEventListener('click', () => {
-      state.savedQty[b.dataset.plus] = (state.savedQty[b.dataset.plus] || 1) + 1;
+      const q = state.savedQty[b.dataset.plus] || 1;
+      state.savedQty[b.dataset.plus] = q < 1 ? 1 : q + 1;
       renderSaved();
     }));
     list.querySelectorAll('[data-minus]').forEach(b => b.addEventListener('click', () => {
-      state.savedQty[b.dataset.minus] = Math.max(1, (state.savedQty[b.dataset.minus] || 1) - 1);
+      const q = state.savedQty[b.dataset.minus] || 1;
+      state.savedQty[b.dataset.minus] = q > 1 ? q - 1 : 0.5;   // below 1 goes to a half serving
       renderSaved();
     }));
     list.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => quickAdd(b.dataset.add)));
-    list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteSavedFood(b.dataset.del)));
+    list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      const f = state.savedFoods.find(x => x.id === b.dataset.del);
+      if (f && confirm(`Delete "${f.name}" from your saved foods? Anything already logged stays.`)) { deleteSavedFood(b.dataset.del); toast('Deleted'); }
+    }));
     list.querySelectorAll('[data-edit]').forEach(el => el.addEventListener('click', () => openSavedFoodModal(el.dataset.edit)));
   }
 
@@ -1248,6 +1278,64 @@
   function start() { askToKeepData(); setTimeout(run, 3000); }
   if (document.readyState === 'complete') start();
   else window.addEventListener('load', start);
+})();
+</script>
+<!-- ============================================================
+     BACKUP STATUS CARD
+     Identical in every app. Put <div id="backupStatus"></div> wherever
+     the app should show it (usually its settings/targets screen) and
+     this fills it in: when everything was last backed up, and a
+     "Back up now" button. Needs the ECOSYSTEM AUTO-BACKUP block above.
+     ============================================================ -->
+<script>
+(function () {
+  "use strict";
+  function ago(iso) {
+    var t = new Date(iso).getTime();
+    if (!t || isNaN(t)) return null;
+    var m = Math.round((Date.now() - t) / 60000);
+    if (m < 2) return 'just now';
+    if (m < 60) return m + ' minutes ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    var d = Math.round(h / 24);
+    return d + (d === 1 ? ' day ago' : ' days ago');
+  }
+  function render(msg, tone) {
+    var el = document.getElementById('backupStatus');
+    if (!el || !window.ecosystemBackup) return;
+    var b = window.ecosystemBackup, last = null;
+    try { last = localStorage.getItem(b.stampKey); } catch (e) {}
+    var set = !!b.relay();
+    var age = last ? (Date.now() - new Date(last).getTime()) / 3600000 : null;
+    var line = !set ? 'Backups aren’t set up on this phone yet — add your relay in Finance → Settings.'
+             : last ? 'Everything your apps hold on this phone was last backed up ' + ago(last) + '.'
+             : 'Nothing backed up yet. One goes automatically a few seconds after you open any app.';
+    var warn = set && (age === null || age > 48);
+    el.innerHTML =
+      '<div style="background:var(--bg-raised,var(--surface));border:1px solid var(--line,var(--surface2));border-radius:14px;padding:14px 16px;">' +
+        '<div style="font-size:13px;line-height:1.55;color:' + (warn ? 'var(--accent,var(--gold))' : 'var(--ink-soft,var(--muted))') + ';">' +
+          (warn && last ? '⚠ ' : '') + line + '</div>' +
+        (set ? '<button type="button" id="backupNowBtn2" style="margin-top:10px;width:100%;padding:11px;border-radius:12px;' +
+                 'background:var(--surface2);border:1px solid var(--line,var(--faint));color:var(--ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;">Back up now</button>' : '') +
+        (msg ? '<div style="margin-top:8px;font-size:12px;font-weight:700;color:' + (tone === 'bad' ? 'var(--warn,var(--danger))' : 'var(--good,#5FBF6E)') + ';">' + msg + '</div>' : '') +
+      '</div>';
+    var btn = document.getElementById('backupNowBtn2');
+    if (btn) btn.addEventListener('click', function () {
+      btn.disabled = true; btn.textContent = 'Backing up…';
+      b.send().then(function () { render('Backed up ✓', 'ok'); })
+              .catch(function (e) { render('Couldn’t back up: ' + (e && e.message ? e.message : 'unknown error'), 'bad'); });
+    });
+  }
+  window.renderBackupStatus = function () { render(); };
+  // Refresh whenever the card's screen is shown or the app comes back to the front.
+  new MutationObserver(function () {
+    var el = document.getElementById('backupStatus');
+    if (el && !el.dataset.done && el.offsetParent !== null) { el.dataset.done = '1'; render(); }
+    else if (el && el.offsetParent === null) { delete el.dataset.done; }
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], childList: true });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) render(); });
+  if (document.readyState === 'complete') render(); else window.addEventListener('load', render);
 })();
 </script>
 </body>
