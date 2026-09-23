@@ -523,8 +523,55 @@
 
   function todayEntries() { return (state.days[activeKey()] && state.days[activeKey()].entries) || []; }
   function todayWater() { return (state.days[activeKey()] && state.days[activeKey()].water) || 0; }
-  function saveDays() { store.set('days', state.days); }
-  function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget, waterTarget: state.waterTarget, targets: state.targets }); }
+  function saveDays() { store.set('days', state.days); publishSummary(); }
+  function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget, waterTarget: state.waterTarget, targets: state.targets }); publishSummary(); }
+
+  // ---------- ecosystem summary: the only thing the Dashboard app reads ----------
+  // Written to a fixed key ("fuel_summary") every time food, water or a target
+  // is saved, and once when the app opens. Always describes the real today,
+  // even while you're viewing or back-filling another day. "date" lets the
+  // Dashboard tell yesterday's numbers from today's if the app wasn't opened.
+  // See the "App Bundle: Data Sharing Spec". Bump SUMMARY_VERSION only if a
+  // field below is renamed or removed.
+  const SUMMARY_VERSION = 1;
+  function publishSummary() {
+    try {
+      const k = todayKey();
+      const day = state.days[k] || {};
+      const entries = day.entries || [];
+      const t = computeTotals(entries);
+      const water = day.water || 0;
+      const kcal = roundInt(t.calories), kcalTarget = roundInt(state.calorieTarget);
+      const headline = entries.length
+        ? `${kcal.toLocaleString()} of ${kcalTarget.toLocaleString()} kcal today · ${roundInt(t.protein)}g protein`
+        : 'Nothing logged today yet';
+      localStorage.setItem('fuel_summary', JSON.stringify({
+        schemaVersion: SUMMARY_VERSION,
+        updatedAt: new Date().toISOString(),
+        appId: 'fuel',
+        headline: headline,
+        data: {
+          date: k,
+          loggedToday: entries.length > 0,
+          itemsToday: entries.length,
+          today: {
+            calories: kcal,
+            protein_g: round(t.protein),
+            fibre_g: round(t.fibre),
+            water_ml: roundInt(water),
+            carbs_g: round(t.carbs),
+            fat_g: round(t.fat)
+          },
+          targets: {
+            calories: kcalTarget || null,
+            protein_g: Number(state.targets.protein) || null,
+            fibre_g: Number(state.targets.fibre) || null,
+            water_ml: roundInt(state.waterTarget) || null
+          }
+        }
+      }));
+    } catch (e) { /* never let the summary break the app */ }
+  }
 
   // One list describing every tracked nutrient. kind: 'goal' = aim to reach it,
   // 'limit' = try to stay under it, 'neutral' = just a reference number.
@@ -1087,6 +1134,7 @@
 
   renderToday();
   renderReview();
+  publishSummary();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
