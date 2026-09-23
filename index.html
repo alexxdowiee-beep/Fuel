@@ -308,7 +308,7 @@
 <body>
 <div class="app">
   <header class="topbar">
-    <span class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="var(--brand)" stroke-linecap="round"><path d="M20 3.5 A16.5 16.5 0 0 1 35.6 14.6" stroke-width="4.2"/><path d="M36.2 20.8 A16.5 16.5 0 0 1 24.6 35.9" stroke-width="3.4"/><path d="M17.2 36.2 A16.5 16.5 0 0 1 4.3 25.4" stroke-width="4"/><path d="M4.1 17.4 A16.5 16.5 0 0 1 10.6 6.9" stroke-width="2.8"/></g><path d="M20.6 8.8 L28.4 8.8 L24.2 17.2 L29.2 17.2 L14.4 32.4 L17.6 22.4 L12.2 22.4 Z" fill="var(--ink)"/></svg>Fuel</span>
+    <span class="brand"><svg viewBox="68 68 376 376" aria-hidden="true"><path d="M390.2,154.9 A168,168 0 0 1 179.7,405.7 M121.8,357.1 A168,168 0 0 1 332.3,106.3" fill="none" stroke="var(--brand)" stroke-width="30"/><g fill="var(--ink)" transform="translate(256 256) skewX(-12) translate(-256 -256) translate(173.0 156)"><polygon points="78,0 156,0 116,74 176,74 40,200 72,114 10,114"/></g></svg>Fuel</span>
     <div class="day-nav">
       <button class="day-arrow" id="dayPrev" aria-label="Previous day">‹</button>
       <span class="subline" id="topSubline"></span>
@@ -392,6 +392,8 @@
       <div class="section-head"><h2 style="font-size:14px;color:var(--ink-soft);">Other nutrients</h2></div>
       <div class="target-group" id="targetsOther"></div>
       <button class="btn primary" id="saveTargetsBtn" style="margin-top:18px;">Save targets</button>
+      <div class="section-head"><h2>Backup</h2></div>
+      <div id="backupStatus"></div>
     </section>
 
     <section class="screen" id="screen-saved">
@@ -1248,6 +1250,64 @@
   function start() { askToKeepData(); setTimeout(run, 3000); }
   if (document.readyState === 'complete') start();
   else window.addEventListener('load', start);
+})();
+</script>
+<!-- ============================================================
+     BACKUP STATUS CARD
+     Identical in every app. Put <div id="backupStatus"></div> wherever
+     the app should show it (usually its settings/targets screen) and
+     this fills it in: when everything was last backed up, and a
+     "Back up now" button. Needs the ECOSYSTEM AUTO-BACKUP block above.
+     ============================================================ -->
+<script>
+(function () {
+  "use strict";
+  function ago(iso) {
+    var t = new Date(iso).getTime();
+    if (!t || isNaN(t)) return null;
+    var m = Math.round((Date.now() - t) / 60000);
+    if (m < 2) return 'just now';
+    if (m < 60) return m + ' minutes ago';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    var d = Math.round(h / 24);
+    return d + (d === 1 ? ' day ago' : ' days ago');
+  }
+  function render(msg, tone) {
+    var el = document.getElementById('backupStatus');
+    if (!el || !window.ecosystemBackup) return;
+    var b = window.ecosystemBackup, last = null;
+    try { last = localStorage.getItem(b.stampKey); } catch (e) {}
+    var set = !!b.relay();
+    var age = last ? (Date.now() - new Date(last).getTime()) / 3600000 : null;
+    var line = !set ? 'Backups aren’t set up on this phone yet — add your relay in Finance → Settings.'
+             : last ? 'Everything your apps hold on this phone was last backed up ' + ago(last) + '.'
+             : 'Nothing backed up yet. One goes automatically a few seconds after you open any app.';
+    var warn = set && (age === null || age > 48);
+    el.innerHTML =
+      '<div style="background:var(--bg-raised,var(--surface));border:1px solid var(--line,var(--surface2));border-radius:14px;padding:14px 16px;">' +
+        '<div style="font-size:13px;line-height:1.55;color:' + (warn ? 'var(--accent,var(--gold))' : 'var(--ink-soft,var(--muted))') + ';">' +
+          (warn && last ? '⚠ ' : '') + line + '</div>' +
+        (set ? '<button type="button" id="backupNowBtn2" style="margin-top:10px;width:100%;padding:11px;border-radius:12px;' +
+                 'background:var(--surface2);border:1px solid var(--line,var(--faint));color:var(--ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;">Back up now</button>' : '') +
+        (msg ? '<div style="margin-top:8px;font-size:12px;font-weight:700;color:' + (tone === 'bad' ? 'var(--warn,var(--danger))' : 'var(--good,#5FBF6E)') + ';">' + msg + '</div>' : '') +
+      '</div>';
+    var btn = document.getElementById('backupNowBtn2');
+    if (btn) btn.addEventListener('click', function () {
+      btn.disabled = true; btn.textContent = 'Backing up…';
+      b.send().then(function () { render('Backed up ✓', 'ok'); })
+              .catch(function (e) { render('Couldn’t back up: ' + (e && e.message ? e.message : 'unknown error'), 'bad'); });
+    });
+  }
+  window.renderBackupStatus = function () { render(); };
+  // Refresh whenever the card's screen is shown or the app comes back to the front.
+  new MutationObserver(function () {
+    var el = document.getElementById('backupStatus');
+    if (el && !el.dataset.done && el.offsetParent !== null) { el.dataset.done = '1'; render(); }
+    else if (el && el.offsetParent === null) { delete el.dataset.done; }
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], childList: true });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) render(); });
+  if (document.readyState === 'complete') render(); else window.addEventListener('load', render);
 })();
 </script>
 </body>
