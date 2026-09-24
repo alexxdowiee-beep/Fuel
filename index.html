@@ -569,7 +569,14 @@
             protein_g: Number(state.targets.protein) || null,
             fibre_g: Number(state.targets.fibre) || null,
             water_ml: roundInt(state.waterTarget) || null
-          }
+          },
+          // Last 28 days that have anything logged (food or water), oldest
+          // first — for the Dashboard's charts and suggestions.
+          history: Object.keys(state.days).sort().filter(d => d <= k && d > shiftKey(k, -28)).map(d => {
+            const dd = state.days[d] || {}, en = dd.entries || [], tt = computeTotals(en);
+            return { date: d, items: en.length, calories: roundInt(tt.calories), protein_g: round(tt.protein),
+                     fibre_g: round(tt.fibre), water_ml: roundInt(dd.water || 0) };
+          }).filter(h => h.items > 0 || h.water_ml > 0)
         }
       }));
     } catch (e) { /* never let the summary break the app */ }
