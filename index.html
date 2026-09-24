@@ -313,6 +313,8 @@
   .tab .ic { line-height:0; padding:4px 14px; }
   .tab .ic .ci { width:22px; height:22px; display:block; }
   .empty-state .emoji .ci { color: var(--ink-soft, var(--muted)); }
+  .toast.has-undo { pointer-events:auto; display:flex; align-items:center; gap:16px; }
+  .toast-undo { background:none; border:none; padding:0; color: var(--brand); font: inherit; font-weight:800; text-transform:uppercase; letter-spacing:.04em; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -458,9 +460,16 @@
   const escapeHtml = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   let toastTimer;
-  function toast(msg) {
-    const t = $('toast'); t.textContent = msg; t.classList.add('show');
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  // toast(msg) shows a short message; toast(msg, undoFn) adds an Undo button for 5 seconds.
+  function toast(msg, undo) {
+    const t = $('toast'); t.textContent = msg;
+    if (undo) {
+      const b = document.createElement('button'); b.className = 'toast-undo'; b.textContent = 'Undo';
+      b.addEventListener('click', () => { clearTimeout(toastTimer); t.classList.remove('show'); undo(); });
+      t.appendChild(b);
+    }
+    t.classList.toggle('has-undo', !!undo); t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), undo ? 5000 : 2200);
   }
 
   const store = {
@@ -1116,7 +1125,10 @@
     list.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => quickAdd(b.dataset.add)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
       const f = state.savedFoods.find(x => x.id === b.dataset.del);
-      if (f && confirm(`Delete "${f.name}" from your saved foods? Anything already logged stays.`)) { deleteSavedFood(b.dataset.del); toast('Deleted'); }
+      if (!f) return;
+      const prevSaved = state.savedFoods.slice();
+      deleteSavedFood(b.dataset.del);
+      toast(`Deleted "${f.name}"`, () => { state.savedFoods = prevSaved; saveSaved(); renderSaved(); });
     }));
     list.querySelectorAll('[data-edit]').forEach(el => el.addEventListener('click', () => openSavedFoodModal(el.dataset.edit)));
   }
