@@ -221,6 +221,7 @@
   .tab { flex:1; border:none; background:none; padding: 11px 4px 9px; display:flex; flex-direction:column; align-items:center; gap:3px; color: var(--ink-faint); cursor:pointer; }
   .tab.active { color: var(--brand); }
   .tab .ic { display:inline-block; padding:2px 14px; border-radius:999px; transition:background .15s; }
+  .add-food-cta { width:100%; margin:14px 0 4px; padding:16px; font-size:16px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
   .tab.active .ic { background: rgba(255,74,22,.16); }
 
   .tab .ic { font-size: 19px; }
@@ -335,6 +336,7 @@
           <button class="edit-target" id="editTargetBtn">Edit targets</button>
         </div>
       </div>
+      <button class="btn primary add-food-cta" id="addFoodCta">+ Add food</button>
 
       <div class="primary-grid">
         <div class="primary-tile"><div class="dot" style="background:var(--protein)"></div><div class="val" id="mProtein">0<span style="font-size:13px;">g</span></div><div class="unit">Protein</div><div class="of" id="ofProtein"></div><div class="mini-bar" id="barWrapProtein"><div class="mini-bar-fill" id="barProtein" style="width:0%;background:var(--protein)"></div></div></div>
@@ -408,11 +410,10 @@
 
   <nav class="tabbar">
     <div class="tabbar-inner">
-      <button class="tab active" data-screen="today"><span class="ic">◉</span><span class="lb">Today</span></button>
-      <button class="tab" data-screen="add"><span class="ic">+</span><span class="lb">Add Food</span></button>
-      <button class="tab" data-screen="history"><span class="ic">▤</span><span class="lb">History</span></button>
+      <button class="tab active" data-screen="today"><span class="ic">&#8962;</span><span class="lb">Home</span></button>
       <button class="tab" data-screen="saved"><span class="ic">★</span><span class="lb">Saved</span></button>
-      <button class="tab" data-screen="targets"><span class="ic">◎</span><span class="lb">Targets</span></button>
+      <button class="tab" data-screen="history"><span class="ic">&#8801;</span><span class="lb">History</span></button>
+      <button class="tab" data-screen="targets"><span class="ic">&#9881;</span><span class="lb">Settings</span></button>
     </div>
   </nav>
 </div>
@@ -427,6 +428,18 @@
 <div class="toast" id="toast"></div>
 
 <script>
+
+  // Shared date format across all apps (NZ style): "Thu 24 Sep", "24 Sep", "24 September", "Thursday"
+  function fmtDate(d, opt) {
+    var DS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], DL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var MS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var ML = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    opt = opt || {}; var out = [];
+    if (opt.weekday) out.push(opt.weekday === 'long' ? DL[d.getDay()] : DS[d.getDay()]);
+    if (opt.day) out.push(d.getDate());
+    if (opt.month) out.push(opt.month === 'long' ? ML[d.getMonth()] : MS[d.getMonth()]);
+    return out.join(' ');
+  }
 (function () {
   /* ============ SHARED HELPERS (same across every app) ============ */
   // Storage prefix kept as 'harvest_' (the app's original name) on purpose:
@@ -457,7 +470,7 @@
   function switchScreen(name) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     $('screen-' + name).classList.add('active');
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.screen === name));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.screen === (name === 'add' ? 'today' : name)));
     if (typeof onScreenEnter === 'function') onScreenEnter(name);
     window.scrollTo(0, 0);
   }
@@ -485,7 +498,7 @@
     const yestK = yD.getFullYear() + '-' + String(yD.getMonth() + 1).padStart(2, '0') + '-' + String(yD.getDate()).padStart(2, '0');
     if (key === todayKey()) return 'Today';
     if (key === yestK) return 'Yesterday';
-    return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    return fmtDate(dt, { weekday: 'short', month: 'short', day: 'numeric' });
   };
   const round = (n) => Math.round((Number(n) || 0) * 10) / 10;
   const roundInt = (n) => Math.round(Number(n) || 0);
@@ -627,7 +640,7 @@
   function renderToday() {
     const viewingToday = isViewingToday();
     const [vy, vm, vd] = activeKey().split('-').map(Number);
-    const dateText = new Date(vy, vm - 1, vd).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    const dateText = fmtDate(new Date(vy, vm - 1, vd), { weekday: 'short', month: 'short', day: 'numeric' });
     $('topSubline').textContent = viewingToday ? dateText : fmtDateLabel(activeKey()) === 'Yesterday' ? 'Yesterday' : dateText;
     $('topSubline').classList.toggle('past', !viewingToday);
     $('topSubline').title = viewingToday ? '' : 'Tap to go back to today';
@@ -682,7 +695,7 @@
     const list = $('todayList');
     $('todayCount').textContent = entries.length ? entries.length + ' item' + (entries.length === 1 ? '' : 's') : '';
     if (!entries.length) {
-      list.innerHTML = `<div class="empty-state"><div class="emoji">🥣</div><p>${viewingToday ? 'Nothing logged yet today.' : 'Nothing logged for this day.'}</p><p>Head to Add Food to get started.</p></div>`;
+      list.innerHTML = `<div class="empty-state"><div class="emoji">🥣</div><p>${viewingToday ? 'Nothing logged yet today.' : 'Nothing logged for this day.'}</p><p>Tap Add food to get started.</p></div>`;
       return;
     }
     const sorted = [...entries].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
@@ -1142,6 +1155,7 @@
   }
 
   $('editTargetBtn').addEventListener('click', () => switchScreen('targets'));
+  $('addFoodCta').addEventListener('click', () => switchScreen('add'));
 
   function targetRowHtml(n) {
     const t = getTarget(n.key);
