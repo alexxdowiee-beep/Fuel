@@ -180,6 +180,13 @@
   input[type=text]:focus, input[type=number]:focus { outline:none; border-color: var(--brand); }
   .remove-item { background:none; border:none; color: var(--ink-faint); font-size: 18px; cursor:pointer; padding:4px 6px; line-height:1; }
   .examples { font-size: 12px; color: var(--ink-faint); line-height:1.5; }
+  .suggest-list { display:flex; flex-direction:column; gap:6px; margin:-4px 0 10px; }
+  .suggest-list:empty { display:none; }
+  .suggest { display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; text-align:left; background: var(--surface2); border:1px solid var(--line); border-radius:10px; padding:9px 11px; color: var(--ink); font: inherit; font-size:13px; cursor:pointer; }
+  .suggest small { color: var(--ink-faint); font-size:12px; margin-left:4px; }
+  .suggest span:last-child { color: var(--ink-soft); white-space:nowrap; }
+  .keep-saved { display:flex; align-items:center; gap:10px; margin-top:14px; font-size:14px; color: var(--ink-soft); cursor:pointer; }
+  .keep-saved input { width:20px; height:20px; accent-color: var(--brand); }
 
   .day-card { background: var(--bg-raised); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
   .day-card .day-head { display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
@@ -387,13 +394,11 @@
     <section class="screen" id="screen-add">
       <div class="day-banner" data-banner><span data-banner-text></span><button type="button" data-banner-today>Back to today</button></div>
       <div class="section-head" style="margin-top:18px;"><h2>Log food</h2><span class="hint">Add one or more items</span></div>
-      <div class="examples" style="margin:-4px 0 12px;">Enter values for one serving. <b>Save food</b> keeps it in Saved foods under the chosen meal. <b>Quick add</b> logs it to the day shown at the top, under that meal (multiplied by servings).</div>
+      <div class="examples" style="margin:-4px 0 12px;">Numbers are for one serving. Start typing to reuse a food you've had before.</div>
       <div id="reviewArea"></div>
       <button class="btn ghost" id="addAnotherBtn" style="margin-top:4px;">+ Add another food</button>
-      <div style="display:flex;gap:10px;margin-top:14px;">
-        <button class="btn ghost" id="saveToFoodsBtn" style="flex:1;padding:13px 10px;"><svg class="ci" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M243,96a20.33,20.33,0,0,0-17.74-14l-56.59-4.57L146.83,24.62a20.36,20.36,0,0,0-37.66,0L87.35,77.44,30.76,82A20.45,20.45,0,0,0,19.1,117.88l43.18,37.24-13.2,55.7A20.37,20.37,0,0,0,79.57,233L128,203.19,176.43,233a20.39,20.39,0,0,0,30.49-22.15l-13.2-55.7,43.18-37.24A20.43,20.43,0,0,0,243,96ZM172.53,141.7a12,12,0,0,0-3.84,11.86L181.58,208l-47.29-29.08a12,12,0,0,0-12.58,0L74.42,208l12.89-54.4a12,12,0,0,0-3.84-11.86L41.2,105.24l55.4-4.47a12,12,0,0,0,10.13-7.38L128,41.89l21.27,51.5a12,12,0,0,0,10.13,7.38l55.4,4.47Z"/></svg> Save food</button>
-        <button class="btn primary" id="saveReviewBtn" style="flex:1;padding:13px 10px;">+ Quick add</button>
-      </div>
+      <label class="keep-saved"><input type="checkbox" id="keepSaved"> Also keep in Saved foods</label>
+      <button class="btn primary" id="saveReviewBtn" style="margin-top:12px;">Log it</button>
     </section>
 
     <section class="screen" id="screen-history">
@@ -846,6 +851,7 @@
         const idx = Number(inp.closest('.review-card').dataset.idx);
         const field = inp.dataset.field;
         state.pendingReviewItems[idx][field] = (field === 'name' || field === 'quantity') ? inp.value : nonNeg(inp.value);
+        if (field === 'name') showSuggestions(inp.closest('.review-card'), inp.value);
       });
     });
     area.querySelectorAll('.remove-item').forEach(btn => {
@@ -872,13 +878,42 @@
       });
     });
   }
+  // Foods you've had before: your Saved foods first, then anything logged in the last 60 days.
+  // Values are per ONE serving so they drop straight into the form.
+  function knownFoods() {
+    const out = [], seen = {};
+    const add = (f, src) => { const k = f.name.trim().toLowerCase(); if (!k || seen[k]) return; seen[k] = 1; out.push(Object.assign({ src }, f)); };
+    state.savedFoods.forEach(f => add(f, 'Saved'));
+    const cutoff = shiftKey(todayKey(), -60);
+    Object.keys(state.days).sort().reverse().filter(d => d >= cutoff).forEach(d => {
+      ((state.days[d] || {}).entries || []).slice().reverse().forEach(e => {
+        const sv = Number(e.servings) > 0 ? Number(e.servings) : 1, per = {};
+        ['calories','protein','fibre','carbs','fat','sugar','satFat','sodium','potassium'].forEach(n => { per[n] = (Number(e[n]) || 0) / sv; });
+        add(Object.assign(per, { name: e.name, category: e.category, quantity: e.baseQuantity !== undefined ? e.baseQuantity : (e.quantity || '') }), 'Recent');
+      });
+    });
+    return out;
+  }
+  function showSuggestions(card, text) {
+    const box = card.querySelector('.suggest-list'), q = text.trim().toLowerCase();
+    if (q.length < 2) { box.innerHTML = ''; return; }
+    const hits = knownFoods().filter(f => f.name.toLowerCase().includes(q)).slice(0, 4);
+    box.innerHTML = hits.map((f, i) => `<button type="button" class="suggest" data-sug="${i}"><span><b>${escapeHtml(f.name)}</b> <small>${f.src}</small></span><span>${round(f.calories)} kcal · P${round(f.protein)}g</span></button>`).join('');
+    box.querySelectorAll('[data-sug]').forEach(b => b.addEventListener('click', () => {
+      const f = hits[Number(b.dataset.sug)], idx = Number(card.dataset.idx), it = state.pendingReviewItems[idx];
+      ['name','quantity','calories','protein','fibre','carbs','fat','sugar','satFat','sodium','potassium'].forEach(n => { if (f[n] !== undefined) it[n] = f[n]; });
+      if (f.category && CATEGORIES.includes(f.category)) it.category = f.category;
+      renderReview();
+    }));
+  }
   function reviewCardHtml(it, idx) {
     return `
     <div class="review-card" data-idx="${idx}">
       <div class="top-row">
-        <input type="text" data-field="name" value="${escapeHtml(it.name)}" placeholder="Food name">
+        <input type="text" data-field="name" value="${escapeHtml(it.name)}" placeholder="Food name" autocomplete="off">
         <button class="remove-item" title="Remove">✕</button>
       </div>
+      <div class="suggest-list"></div>
       <div class="field-row" style="margin-top:0;">
         <input type="text" data-field="quantity" value="${escapeHtml(it.quantity)}" placeholder="Quantity, e.g. 1 slice" style="flex:2;min-width:110px;">
         <div class="field" style="max-width:78px;"><label>Servings</label><input type="number" data-field="servings" value="${it.servings || 1}" min="0.5" step="0.5" inputmode="decimal"></div>
@@ -921,24 +956,20 @@
         servings: servings, baseQuantity: it.quantity || '' };
     });
     addEntries(entries);
+    // "Also keep in Saved foods": store the per-serving values (skips names already saved)
+    const keep = $('keepSaved') && $('keepSaved').checked;
+    if (keep) valid.forEach(it => {
+      if (state.savedFoods.some(f => f.name.trim().toLowerCase() === it.name.trim().toLowerCase())) return;
+      saveAsQuickFood({ name: it.name.trim(), quantity: it.quantity || '', category: it.category || '',
+        calories: Number(it.calories) || 0, protein: Number(it.protein) || 0, fibre: Number(it.fibre) || 0,
+        carbs: Number(it.carbs) || 0, fat: Number(it.fat) || 0, sugar: Number(it.sugar) || 0,
+        satFat: Number(it.satFat) || 0, sodium: Number(it.sodium) || 0, potassium: Number(it.potassium) || 0 });
+    });
+    if ($('keepSaved')) $('keepSaved').checked = false;
     state.pendingReviewItems = [blankItem()];
     renderReview();
-    toast('Added to ' + dayWord());
+    toast('Added to ' + dayWord() + (keep ? ' · saved' : ''));
     switchScreen('today');
-  });
-
-  // Saves each filled-in food (per-serving values) to Saved foods without logging it.
-  $('saveToFoodsBtn').addEventListener('click', () => {
-    const valid = state.pendingReviewItems.filter(it => it.name.trim());
-    if (!valid.length) { toast('Add a food name first'); return; }
-    valid.forEach(it => saveAsQuickFood({ name: it.name.trim(), quantity: it.quantity || '', category: it.category || '',
-      calories: Number(it.calories) || 0, protein: Number(it.protein) || 0, fibre: Number(it.fibre) || 0,
-      carbs: Number(it.carbs) || 0, fat: Number(it.fat) || 0, sugar: Number(it.sugar) || 0,
-      satFat: Number(it.satFat) || 0, sodium: Number(it.sodium) || 0, potassium: Number(it.potassium) || 0 }));
-    state.pendingReviewItems = [blankItem()];
-    renderReview();
-    toast(valid.length === 1 ? valid[0].name.trim() + ' saved' : valid.length + ' foods saved');
-    switchScreen('saved');
   });
 
   function openEntryModal(id) {
