@@ -194,6 +194,13 @@
   .day-card .day-head .k { font-family: var(--font-display); font-weight:600; font-size:16px; color: var(--brand); }
   .day-card .macros { display:flex; gap:14px; margin-top:8px; font-size:12px; color: var(--ink-soft); flex-wrap:wrap; }
   .day-card .macros b { color: var(--ink); }
+  .hchips { display:flex; flex-wrap:nowrap; gap:4px; margin-top:10px; }
+  .hchip { flex:1 1 auto; font-size:12px; font-weight:700; padding:5px 4px; border-radius:999px; border:1px solid; text-align:center; white-space:nowrap; letter-spacing:-0.01em; }
+  .hchip .ls { display:none; }
+  @media (max-width: 430px) { .hchip .lf { display:none; } .hchip .ls { display:inline; } }
+  .hchip.ok { color:#5FBF6E; border-color: rgba(95,191,110,.5); background: rgba(95,191,110,.1); }
+  .hchip.warn { color: var(--accent); border-color: rgba(240,180,41,.5); background: rgba(240,180,41,.1); }
+  .hchip.bad { color: var(--warn); border-color: rgba(229,72,77,.5); background: rgba(229,72,77,.1); }
   .day-entries { margin-top:10px; padding-top:10px; border-top:1px solid var(--line); display:none; }
   .day-entries.open { display:block; }
   .day-entries .e { display:flex; justify-content:space-between; font-size:13px; padding:5px 0; color: var(--ink-soft); }
@@ -1174,6 +1181,22 @@
     list.querySelectorAll('[data-edit]').forEach(el => el.addEventListener('click', () => openSavedFoodModal(el.dataset.edit)));
   }
 
+  // One row of status tags per past day, measured against your current targets.
+  // Calories: red if over, green if not. Protein/fibre/water: amber if short, green if hit.
+  function dayChipsHtml(t, water) {
+    const chips = [];
+    const add = (cls, full, short, val) => chips.push(`<span class="hchip ${cls}"><span class="lf">${full}</span><span class="ls">${short}</span> ${val}</span>`);
+    const kt = getTarget('calories');
+    if (kt) { const d = Math.round(t.calories - kt); if (d > 0) add('bad', 'kcal', 'kcal', '+' + d); else add('ok', 'kcal', 'kcal', '✓'); }
+    [['protein', 'Protein', 'Prot'], ['fibre', 'Fibre', 'Fibre']].forEach(([k, full, short]) => {
+      const tg = getTarget(k); if (!tg) return;
+      const d = Math.round(tg - (t[k] || 0));
+      if (d > 0) add('warn', full, short, '−' + d + 'g'); else add('ok', full, short, '✓');
+    });
+    const wt = getTarget('water');
+    if (wt) { const d = wt - (water || 0); if (d >= 50) add('warn', 'Water', 'Water', '−' + (Math.round(d / 100) / 10) + 'L'); else add('ok', 'Water', 'Water', '✓'); }
+    return chips.length ? `<div class="hchips">${chips.join('')}</div>` : '';
+  }
   function renderHistory() {
     const el = $('historyList');
     const days = Object.values(state.days).filter(d => d.date !== todayKey()).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
@@ -1191,6 +1214,7 @@
           <span><b>${round(t.fibre)}g</b> fibre</span>
           <span><b>${roundInt(day.water || 0)}ml</b> water</span>
         </div>
+        ${dayChipsHtml(t, day.water)}
         <div class="day-entries" id="entries-${day.date}">
           <div class="macros" style="margin-top:0;margin-bottom:8px;">
             <span><b>${round(t.carbs)}g</b> carbs</span>
