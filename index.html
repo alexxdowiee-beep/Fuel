@@ -395,7 +395,7 @@
     <section class="screen" id="screen-add">
       <div class="day-banner" data-banner><span data-banner-text></span><button type="button" data-banner-today>Back to today</button></div>
       <div class="section-head" style="margin-top:18px;"><h2>Log food</h2><span class="hint">Add one or more items</span></div>
-      <div class="examples" style="margin:-4px 0 12px;">Numbers are for one serving. Start typing to reuse a food you've had before.</div>
+      <div class="examples" style="margin:-4px 0 12px;">Enter the totals for what you ate. Start typing to reuse a food you've had before.</div>
       <div id="reviewArea"></div>
       <button class="btn ghost" id="addAnotherBtn" style="margin-top:4px;">+ Add another food</button>
       <label class="keep-saved"><input type="checkbox" id="keepSaved"> Also keep in Saved foods</label>
@@ -880,7 +880,7 @@
     });
   }
   // Foods you've had before: your Saved foods first, then anything logged in the last 60 days.
-  // Values are per ONE serving so they drop straight into the form.
+  // Values are the full amounts as logged, so they drop straight into the form.
   function knownFoods() {
     const out = [], seen = {};
     const add = (f, src) => { const k = f.name.trim().toLowerCase(); if (!k || seen[k]) return; seen[k] = 1; out.push(Object.assign({ src }, f)); };
@@ -888,9 +888,9 @@
     const cutoff = shiftKey(todayKey(), -60);
     Object.keys(state.days).sort().reverse().filter(d => d >= cutoff).forEach(d => {
       ((state.days[d] || {}).entries || []).slice().reverse().forEach(e => {
-        const sv = Number(e.servings) > 0 ? Number(e.servings) : 1, per = {};
+        const sv = 1, per = {};   // full amounts: reuse exactly what was logged
         ['calories','protein','fibre','carbs','fat','sugar','satFat','sodium','potassium'].forEach(n => { per[n] = (Number(e[n]) || 0) / sv; });
-        add(Object.assign(per, { name: e.name, category: e.category, quantity: e.baseQuantity !== undefined ? e.baseQuantity : (e.quantity || '') }), 'Recent');
+        add(Object.assign(per, { name: e.name, category: e.category, quantity: e.quantity || '' }), 'Recent');
       });
     });
     return out;
@@ -915,10 +915,6 @@
         <button class="remove-item" title="Remove">✕</button>
       </div>
       <div class="suggest-list"></div>
-      <div class="field-row" style="margin-top:0;">
-        <input type="text" data-field="quantity" value="${escapeHtml(it.quantity)}" placeholder="Quantity, e.g. 1 slice" style="flex:2;min-width:110px;">
-        <div class="field" style="max-width:78px;"><label>Servings</label><input type="number" data-field="servings" value="${it.servings || 1}" min="0.5" step="0.5" inputmode="decimal"></div>
-      </div>
       <div class="cat-label">Meal</div>
       ${catChipsHtml(it.category, 'data-cat')}
       <div class="field-row">
