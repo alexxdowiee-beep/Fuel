@@ -335,6 +335,19 @@
   /* Only one solid orange button per screen: row buttons are grey, orange only while pressed */
   .add-log-btn { background: var(--surface2); color: var(--ink); border: 1px solid var(--line); }
   .add-log-btn:active { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  .cd-card { background: var(--bg-raised); border:1px dashed var(--line); border-radius: var(--radius-lg); padding:20px 18px; text-align:center; margin-bottom:14px; }
+  .cd-card h3 { font-family: var(--font-display); font-weight:400; font-size:22px; margin:6px 0 4px; text-transform:none; letter-spacing:.02em; }
+  .cd-card p { color: var(--ink-soft); font-size:14px; margin:0 0 14px; line-height:1.5; }
+  .cd-ico { font-size:28px; color: var(--accent); }
+  .cd-btns { display:flex; gap:10px; }
+  .cd-btns button { flex:1; padding:13px; border-radius:12px; font: inherit; font-weight:700; font-size:14px; border:1px solid var(--line); background: var(--surface2); color: var(--ink); cursor:pointer; }
+  .cd-btns .pri { background: var(--brand); color: var(--brand-ink); border:none; }
+  .cd-undo, .cheat-link { background:none; border:none; color: var(--brand); font: inherit; font-weight:700; font-size:13px; cursor:pointer; padding:8px 0; }
+  .cheat-link { display:block; margin:14px auto 0; color: var(--ink-soft); text-decoration:underline; }
+  .hchip.cheat { color: var(--ink-soft); border-color: var(--line); background: var(--surface2); }
+  .miss-row { display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px dashed var(--line); border-radius: var(--radius-md); padding:12px 14px; margin-bottom:10px; font-size:14px; }
+  .miss-row span { display:block; color: var(--ink-soft); font-size:12px; }
+  .miss-row button { flex:none; background: var(--surface2); border:1px solid var(--line); color: var(--ink); border-radius:999px; padding:7px 12px; font: inherit; font-size:12px; font-weight:700; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -350,6 +363,7 @@
 
   <main>
     <section class="screen active" id="screen-today">
+      <div id="cheatSlot"></div>
       <div class="ring-card">
         <div class="ring-wrap">
           <svg viewBox="0 0 118 118">
@@ -605,7 +619,8 @@
         headline: headline,
         data: {
           date: k,
-          loggedToday: entries.length > 0,
+          loggedToday: entries.length > 0 || !!day.cheat,
+          cheatToday: !!day.cheat,
           itemsToday: entries.length,
           today: {
             calories: kcal,
@@ -624,10 +639,10 @@
           // Last 28 days that have anything logged (food or water), oldest
           // first — for the Dashboard's charts and suggestions.
           history: Object.keys(state.days).sort().filter(d => d <= k && d > shiftKey(k, -28)).map(d => {
-            const dd = state.days[d] || {}, en = dd.entries || [], tt = computeTotals(en);
+            const dd = state.days[d] || {}, en = dd.cheat ? [] : (dd.entries || []), tt = computeTotals(en);
             return { date: d, items: en.length, calories: roundInt(tt.calories), protein_g: round(tt.protein),
-                     fibre_g: round(tt.fibre), water_ml: roundInt(dd.water || 0) };
-          }).filter(h => h.items > 0 || h.water_ml > 0)
+                     fibre_g: round(tt.fibre), water_ml: roundInt(dd.water || 0), cheat: !!dd.cheat };
+          }).filter(h => h.items > 0 || h.water_ml > 0 || h.cheat)
         }
       }));
     } catch (e) { /* never let the summary break the app */ }
@@ -672,6 +687,31 @@
     }, { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0, sugar: 0, satFat: 0, sodium: 0, potassium: 0 });
   }
 
+  // Cheat days: a day marked "doesn't count". Any food logged that day is kept
+  // but left out of History tags, the Dashboard and the weekly review until undone.
+  function isCheat(k) { return !!(state.days[k] && state.days[k].cheat); }
+  function setCheat(k, on) {
+    if (!state.days[k]) state.days[k] = { date: k, entries: [] };
+    if (on) state.days[k].cheat = true; else delete state.days[k].cheat;
+    saveDays(); renderToday(); renderHistory();
+    toast(on ? fmtDateLabel(k) + ' marked as a cheat day' : 'Cheat day removed', () => setCheat(k, !on));
+  }
+  function renderCheatSlot(entries, viewingToday) {
+    const k = activeKey(), slot = $('cheatSlot'), cheat = isCheat(k);
+    document.querySelector('#screen-today .ring-card').style.display = cheat ? 'none' : '';
+    if (cheat) {
+      slot.innerHTML = `<div class="cd-card"><div class="cd-ico">${ICON.star}</div><h3>Cheat day</h3>
+        <p>${escapeHtml(fmtDateLabel(k))} isn't counted in your History, the Dashboard or the weekly review.${entries.length ? ' The food below is kept but ignored.' : ''}</p>
+        <button type="button" class="cd-undo" id="cheatUndo">Undo · it wasn't a cheat day</button></div>`;
+      $('cheatUndo').addEventListener('click', () => setCheat(k, false));
+    } else if (!viewingToday && !entries.length) {
+      slot.innerHTML = `<div class="cd-card"><h3>Nothing logged on ${escapeHtml(fmtDateLabel(k))}</h3>
+        <p>Add what you ate, or mark it as a cheat day so it isn't counted against your targets or averages.</p>
+        <div class="cd-btns"><button type="button" id="cheatMark">Mark as cheat day</button><button type="button" class="pri" id="cheatAdd">+ Add food</button></div></div>`;
+      $('cheatMark').addEventListener('click', () => setCheat(k, true));
+      $('cheatAdd').addEventListener('click', () => switchScreen('add'));
+    } else slot.innerHTML = '';
+  }
   function renderToday() {
     const viewingToday = isViewingToday();
     const [vy, vm, vd] = activeKey().split('-').map(Number);
@@ -683,6 +723,7 @@
     const label = fmtDateLabel(activeKey());
     $('foodHead').textContent = label === 'Today' ? "Today's food" : label === 'Yesterday' ? "Yesterday's food" : 'Food · ' + label;
     const entries = todayEntries();
+    renderCheatSlot(entries, viewingToday);
     const totals = computeTotals(entries);
     const target = state.calorieTarget || 0;
     const remaining = Math.round(target - totals.calories);
@@ -750,6 +791,10 @@
       return `<div class="meal-head${collapsed ? ' collapsed' : ''}" data-meal="${c}"><h3><span class="chev">▾</span>${c}${collapsed ? ` <span style="font-size:12px;color:var(--ink-faint);font-weight:600;">· ${items.length} item${items.length === 1 ? '' : 's'}</span>` : ''}</h3><span>${roundInt(kcal)} kcal</span></div>
         <div class="log-list">${items.map(itemHtml).join('')}</div>`;
     }).join('');
+    if (!isCheat(activeKey())) {
+      list.insertAdjacentHTML('beforeend', '<button type="button" class="cheat-link" id="cheatLink">Mark this day as a cheat day</button>');
+      $('cheatLink').addEventListener('click', () => setCheat(activeKey(), true));
+    }
     list.querySelectorAll('.log-item').forEach(el => el.addEventListener('click', () => openEntryModal(el.dataset.id)));
     list.querySelectorAll('.meal-head').forEach(h => h.addEventListener('click', () => {
       const c = h.dataset.meal;
@@ -1199,9 +1244,18 @@
   }
   function renderHistory() {
     const el = $('historyList');
-    const days = Object.values(state.days).filter(d => d.date !== todayKey()).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+    // Logged and cheat days, plus any missed days in between (so they can be marked as cheat days)
+    const known = Object.values(state.days).filter(d => d.date !== todayKey() && ((d.entries || []).length || d.water || d.cheat));
+    const firstKey = known.map(d => d.date).sort()[0];
+    const byKey = {}; known.forEach(d => { byKey[d.date] = d; });
+    const days = [];
+    if (firstKey) for (let k = shiftKey(todayKey(), -1); k >= firstKey && days.length < 30; k = shiftKey(k, -1)) days.push(byKey[k] || { date: k, entries: [], missed: true });
     if (!days.length) { el.innerHTML = `<div class="empty-state"><div class="emoji">${ICON["clock-counter-clockwise"]}</div><p>No previous days yet.</p></div>`; return; }
     el.innerHTML = days.map(day => {
+      if (day.missed) return `<div class="miss-row"><div><b>${fmtDateLabel(day.date)}</b><span>Nothing logged</span></div><button type="button" data-cheatday="${day.date}">Mark as cheat day</button></div>`;
+      if (day.cheat) return `<div class="day-card"><div class="day-head" data-date="${day.date}"><span class="d">${fmtDateLabel(day.date)}</span><span class="k" style="color:var(--ink-soft)">—</span></div>
+        <div class="hchips"><span class="hchip cheat">${ICON.star} Cheat day · not counted</span></div>
+        <div class="day-entries" id="entries-${day.date}"><button type="button" class="cheat-link" data-uncheat="${day.date}">Undo cheat day</button></div></div>`;
       const t = computeTotals(day.entries || []);
       return `
       <div class="day-card">
@@ -1229,6 +1283,8 @@
       </div>`;
     }).join('');
     el.querySelectorAll('.day-head').forEach(h => h.addEventListener('click', () => { $('entries-' + h.dataset.date).classList.toggle('open'); }));
+    el.querySelectorAll('[data-cheatday]').forEach(b => b.addEventListener('click', () => setCheat(b.dataset.cheatday, true)));
+    el.querySelectorAll('[data-uncheat]').forEach(b => b.addEventListener('click', (ev) => { ev.stopPropagation(); setCheat(b.dataset.uncheat, false); }));
     // Tapping an entry in History jumps to that day and opens it for editing -
     // same sheet as on the Today screen, so there is only one way to edit food.
     el.querySelectorAll('.e[data-eid]').forEach(row => row.addEventListener('click', (ev) => {
