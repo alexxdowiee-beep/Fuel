@@ -96,6 +96,20 @@
   .ring-center .num { font-family: var(--font-display); font-size: 26px; font-weight:600; line-height:1; }
   .ring-center .lbl { font-size: 12px; opacity:.85; margin-top:3px; text-align:center; }
   .ring-meta { flex:1; }
+  .ring-meta .act-row { cursor:pointer; }
+  .ring-meta .act-row b.plus { color:#5FBF6E; }
+  .act-est { font-size:11px; color: var(--ink-faint); margin-top:2px; }
+  .act-line { display:block; width:100%; text-align:left; margin-top:10px; font: inherit; font-size:13px; color: var(--ink-soft); background: var(--surface2); border:1px solid var(--line); border-radius:10px; padding:9px 12px; cursor:pointer; }
+  .act-line b { color:#5FBF6E; }
+  .act-list > div { display:flex; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px; font-variant-numeric: tabular-nums; }
+  .act-list > div:last-child { border-bottom:none; }
+  .act-list small { display:block; color: var(--ink-faint); font-size:12px; margin-top:1px; }
+  .act-list .g { color:#5FBF6E; font-weight:700; }
+  .act-list .tot { font-family: var(--font-display); font-size:18px; }
+  .act-note { font-size:12px; color: var(--ink-faint); line-height:1.45; margin:12px 0 0; }
+  .seg { display:flex; background: var(--surface2); border-radius:10px; padding:3px; gap:2px; flex-shrink:0; }
+  .seg button { background:none; border:none; font: inherit; font-size:12px; font-weight:600; padding:7px 9px; border-radius:8px; color: var(--ink-soft); cursor:pointer; }
+  .seg button.on { background: var(--brand); color: var(--brand-ink); }
   .ring-meta .row { display:flex; justify-content:space-between; font-size: 14px; padding: 3px 0; opacity: .92; }
   .ring-meta .row b { font-weight:700; }
   .ring-meta button.edit-target { margin-top: 8px; background: rgba(255,255,255,0.16); border: none; color: inherit; font-size: 12px; padding: 6px 10px; border-radius: 999px; cursor:pointer; }
@@ -373,11 +387,14 @@
           <div class="ring-center"><div class="num" id="ringRemaining">–</div><div class="lbl" id="ringLbl">kcal left</div></div>
         </div>
         <div class="ring-meta">
-          <div class="row"><span>Target</span><b id="metaTarget">–</b></div>
+          <div class="row"><span id="metaTargetLbl">Target</span><b id="metaTarget">–</b></div>
+          <div class="row act-row" id="metaActRow" style="display:none" role="button" tabindex="0"><span>Activity ›</span><b class="plus" id="metaAct"></b></div>
           <div class="row"><span>Eaten</span><b id="metaEaten">–</b></div>
+          <div class="act-est" id="metaEst" style="display:none">Activity is an estimate</div>
           <button class="edit-target" id="editTargetBtn">Edit targets</button>
         </div>
       </div>
+      <button type="button" class="act-line" id="actLine" style="display:none"></button>
       <button class="btn primary add-food-cta" id="addFoodCta">+ Add food</button>
 
       <div class="primary-grid">
@@ -437,6 +454,8 @@
       <div class="section-head"><h2 style="font-size:14px;color:var(--ink-soft);">Other nutrients</h2></div>
       <div class="target-group" id="targetsOther"></div>
       <button class="btn primary" id="saveTargetsBtn" style="margin-top:18px;">Save targets</button>
+      <div class="section-head"><h2>Calories from activity</h2><span class="hint">Estimates</span></div>
+      <div class="target-group" id="activitySettings"></div>
       <div class="section-head"><h2>Backup</h2></div>
       <div id="backupStatus"></div>
     </section>
@@ -563,6 +582,8 @@
     pendingReviewItems: [],
     secondaryOpen: false,
     collapsedMeals: store.get('collapsedMeals', []),
+    // Calories from activity: mode 'off' | 'show' | 'half' | 'all'; stepBase = steps already in the base target
+    activity: Object.assign({ mode: 'half', stepBase: 5000 }, profile.activity || {}),
   };
 
   // The day shown on Today (and logged to from Add Food / Saved). null = the real today,
@@ -591,7 +612,63 @@
   function todayEntries() { return (state.days[activeKey()] && state.days[activeKey()].entries) || []; }
   function todayWater() { return (state.days[activeKey()] && state.days[activeKey()].water) || 0; }
   function saveDays() { store.set('days', state.days); publishSummary(); }
-  function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget, waterTarget: state.waterTarget, targets: state.targets }); publishSummary(); }
+  function saveProfile() { store.set('profile', { calorieTarget: state.calorieTarget, waterTarget: state.waterTarget, targets: state.targets, activity: state.activity }); publishSummary(); }
+
+  // ---------- Calories from activity (Forge workouts + steps) ----------
+  // Workouts: Forge's own calorie estimate (Forge shares it per day in forge_summary).
+  // Steps: about 0.0005 kcal per step per kg of body weight, counting only steps above
+  // stepBase, because the base target already allows for normal moving around.
+  // Everything here is an estimate and is always labelled that way.
+  function readShared(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function activityFor(key) {
+    const fd = (readShared('forge_summary') || {}).data || {};
+    const workout = Math.max(0, Math.round(Number((fd.kcalByDate || {})[key]) || 0));
+    const names = (fd.weekLog || []).filter(w => w.date === key).map(w => w.name);
+    let bw = null; (fd.bodyweightHistory || []).forEach(b => { if (b && b.kg && (!bw || b.date >= bw.date)) bw = b; });
+    const hc = readShared('health_cache'), hd = (hc && hc.days && hc.days[key]) || {};
+    const steps = Math.max(0, Math.round(Number(hd.steps) || 0));
+    const stepKcal = Math.round(Math.max(0, steps - state.activity.stepBase) * (bw ? bw.kg : 80) * 0.0005);
+    const total = workout + stepKcal;
+    const share = state.activity.mode === 'all' ? 1 : state.activity.mode === 'half' ? 0.5 : 0;
+    return { workout, names, steps, stepKcal, total, added: Math.round(total * share), knownWeight: !!bw };
+  }
+  // The calorie target for a given day: your base target plus any activity you've chosen to add.
+  function calorieTargetFor(key) {
+    const base = state.calorieTarget || 0;
+    return base ? base + activityFor(key).added : 0;
+  }
+  function openActivitySheet(key) {
+    const a = activityFor(key), m = state.activity.mode;
+    const shareTxt = m === 'all' ? 'all' : m === 'half' ? 'half' : 'none, shown only';
+    openModal('Activity ' + (key === todayKey() ? 'today' : fmtDateLabel(key).toLowerCase()), `
+      <div class="act-list">
+        <div><span>${a.names.length ? escapeHtml(a.names.join(' + ')) + ' workout' : 'Workouts'}<small>${a.workout ? 'From Forge' : (a.names.length ? 'Log body weight in Forge to estimate this' : 'None logged in Forge')}</small></span><span class="g">${a.workout ? '≈ ' + a.workout : '–'}</span></div>
+        <div><span>${a.steps ? a.steps.toLocaleString() + ' steps' : 'Steps'}<small>Only steps over ${state.activity.stepBase.toLocaleString()} count</small></span><span class="g">${a.stepKcal ? '≈ ' + a.stepKcal : '–'}</span></div>
+        <div><span>Estimated total</span><span class="tot">${a.total.toLocaleString()}</span></div>
+        <div><span>Added to your target (${shareTxt})</span><span class="tot g">+${a.added.toLocaleString()}</span></div>
+      </div>
+      <p class="act-note">These are estimates${a.knownWeight ? ', using your body weight from Forge' : ' (no body weight in Forge yet, so 80 kg is assumed)'}. Steps update through the day, so this can go up. Change how much is added in Settings.</p>`);
+  }
+  // Keep steps fresh: same relay and shared cache as Forge, Mind and the Dashboard.
+  function refreshHealth(onNew) {
+    try {
+      const st = readShared('finance_settings');
+      if (!st || !st.relayUrl || !st.relayKey) return;
+      const c = readShared('health_cache');
+      const hasData = c && c.days && Object.keys(c.days).length;
+      if (c && Date.now() - (c.fetchedAt || 0) < (hasData ? 15 : 1) * 60000) return;
+      let base = String(st.relayUrl).trim().replace(/\/+$/, '');
+      if (!/^https?:\/\//i.test(base)) base = 'https://' + base;
+      fetch(base + '/health', { headers: { 'X-Relay-Key': st.relayKey } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d || !d.days) return;
+          d.fetchedAt = Date.now();
+          try { localStorage.setItem('health_cache', JSON.stringify(d)); } catch (e) {}
+          if (onNew) onNew(d);
+        }).catch(() => {});
+    } catch (e) {}
+  }
 
   // ---------- ecosystem summary: the only thing the Dashboard app reads ----------
   // Written to a fixed key ("fuel_summary") every time food, water or a target
@@ -608,7 +685,7 @@
       const entries = day.entries || [];
       const t = computeTotals(entries);
       const water = day.water || 0;
-      const kcal = roundInt(t.calories), kcalTarget = roundInt(state.calorieTarget);
+      const kcal = roundInt(t.calories), kcalTarget = roundInt(calorieTargetFor(k)), act = activityFor(k);
       const headline = entries.length
         ? `${kcal.toLocaleString()} of ${kcalTarget.toLocaleString()} kcal today · ${roundInt(t.protein)}g protein`
         : 'Nothing logged today yet';
@@ -632,6 +709,8 @@
           },
           targets: {
             calories: kcalTarget || null,
+            calories_base: roundInt(state.calorieTarget) || null,
+            calories_activity: act.added,
             protein_g: Number(state.targets.protein) || null,
             fibre_g: Number(state.targets.fibre) || null,
             water_ml: roundInt(state.waterTarget) || null
@@ -640,7 +719,7 @@
           // first — for the Dashboard's charts and suggestions.
           history: Object.keys(state.days).sort().filter(d => d <= k && d > shiftKey(k, -28)).map(d => {
             const dd = state.days[d] || {}, en = dd.cheat ? [] : (dd.entries || []), tt = computeTotals(en);
-            return { date: d, items: en.length, calories: roundInt(tt.calories), protein_g: round(tt.protein),
+            return { date: d, items: en.length, calories: roundInt(tt.calories), target_kcal: roundInt(calorieTargetFor(d)) || null, protein_g: round(tt.protein),
                      fibre_g: round(tt.fibre), water_ml: roundInt(dd.water || 0), cheat: !!dd.cheat };
           }).filter(h => h.items > 0 || h.water_ml > 0 || h.cheat)
         }
@@ -663,8 +742,8 @@
     { key: 'potassium', label: 'Potassium',     unit: 'mg',   kind: 'goal',    group: 'other' },
   ];
   const KIND_TEXT = { goal: 'Aim to reach', limit: 'Stay under', neutral: 'Reference' };
-  function getTarget(key) {
-    if (key === 'calories') return state.calorieTarget || 0;
+  function getTarget(key, dayKey) {
+    if (key === 'calories') return calorieTargetFor(dayKey || activeKey());
     if (key === 'water') return state.waterTarget || 0;
     return Number(state.targets[key]) || 0;
   }
@@ -725,9 +804,17 @@
     const entries = todayEntries();
     renderCheatSlot(entries, viewingToday);
     const totals = computeTotals(entries);
-    const target = state.calorieTarget || 0;
+    const act = activityFor(activeKey()), adding = !!(state.calorieTarget && act.added > 0);
+    const target = calorieTargetFor(activeKey());
     const remaining = Math.round(target - totals.calories);
-    $('metaTarget').textContent = target ? roundInt(target) + ' kcal' : 'Not set';
+    $('metaTargetLbl').textContent = adding ? 'Base' : 'Target';
+    $('metaTarget').textContent = state.calorieTarget ? roundInt(state.calorieTarget) + ' kcal' : 'Not set';
+    $('metaActRow').style.display = adding ? '' : 'none';
+    $('metaAct').textContent = '+' + act.added.toLocaleString() + ' kcal';
+    $('metaEst').style.display = adding ? '' : 'none';
+    const showOnly = state.activity.mode === 'show' && act.total > 0;
+    $('actLine').style.display = showOnly ? '' : 'none';
+    if (showOnly) $('actLine').innerHTML = `Activity ${isViewingToday() ? 'today' : 'this day'} <b>≈ +${act.total.toLocaleString()} kcal</b> · not added to your target`;
     $('metaEaten').textContent = roundInt(totals.calories) + ' kcal';
     const over = target && remaining < 0;
     $('ringRemaining').textContent = target ? Math.abs(remaining) : '–';
@@ -1228,10 +1315,10 @@
 
   // One row of status tags per past day, measured against your current targets.
   // Calories: red if over, green if not. Protein/fibre/water: amber if short, green if hit.
-  function dayChipsHtml(t, water) {
+  function dayChipsHtml(t, water, dayKey) {
     const chips = [];
     const add = (cls, full, short, val) => chips.push(`<span class="hchip ${cls}"><span class="lf">${full}</span><span class="ls">${short}</span> ${val}</span>`);
-    const kt = getTarget('calories');
+    const kt = getTarget('calories', dayKey);
     if (kt) { const d = Math.round(t.calories - kt); if (d > 0) add('bad', 'kcal', 'kcal', '+' + d); else add('ok', 'kcal', 'kcal', '✓'); }
     [['protein', 'Protein', 'Prot'], ['fibre', 'Fibre', 'Fibre']].forEach(([k, full, short]) => {
       const tg = getTarget(k); if (!tg) return;
@@ -1268,7 +1355,7 @@
           <span><b>${round(t.fibre)}g</b> fibre</span>
           <span><b>${roundInt(day.water || 0)}ml</b> water</span>
         </div>
-        ${dayChipsHtml(t, day.water)}
+        ${dayChipsHtml(t, day.water, day.date)}
         <div class="day-entries" id="entries-${day.date}">
           <div class="macros" style="margin-top:0;margin-bottom:8px;">
             <span><b>${round(t.carbs)}g</b> carbs</span>
@@ -1308,7 +1395,27 @@
   function renderTargets() {
     $('targetsMain').innerHTML = NUTRIENTS.filter(n => n.group === 'main').map(targetRowHtml).join('');
     $('targetsOther').innerHTML = NUTRIENTS.filter(n => n.group === 'other').map(targetRowHtml).join('');
+    renderActivitySettings();
   }
+  // Saves as soon as you tap - no Save button needed for these two.
+  function renderActivitySettings() {
+    const a = state.activity;
+    const seg = (name, opts) => `<div class="seg">${opts.map(([v, l]) => `<button type="button" data-${name}="${v}" class="${String(a[name]) === String(v) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    $('activitySettings').innerHTML = `
+      <div class="target-row"><div class="t-label"><div class="t-name">Add activity to my target</div><div class="t-kind">From Forge workouts and steps</div></div>
+        ${seg('mode', [['off', 'Off'], ['show', 'Show'], ['half', 'Half'], ['all', 'All']])}</div>
+      <div class="target-row"><div class="t-label"><div class="t-name">Steps already in my base target</div><div class="t-kind">Only steps above this earn extra</div></div>
+        ${seg('stepBase', [[3000, '3k'], [5000, '5k'], [8000, '8k']])}</div>`;
+    $('activitySettings').querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+      state.activity.mode = b.dataset.mode; saveProfile(); renderActivitySettings(); renderToday(); toast('Saved');
+    }));
+    $('activitySettings').querySelectorAll('[data-stepBase], [data-stepbase]').forEach(b => b.addEventListener('click', () => {
+      state.activity.stepBase = Number(b.dataset.stepbase); saveProfile(); renderActivitySettings(); renderToday(); toast('Saved');
+    }));
+  }
+  $('metaActRow').addEventListener('click', () => openActivitySheet(activeKey()));
+  $('metaActRow').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActivitySheet(activeKey()); } });
+  $('actLine').addEventListener('click', () => openActivitySheet(activeKey()));
   $('saveTargetsBtn').addEventListener('click', () => {
     document.querySelectorAll('[data-target]').forEach(inp => {
       const v = Math.max(0, Number(inp.value) || 0);
@@ -1330,6 +1437,10 @@
   renderToday();
   renderReview();
   publishSummary();
+  refreshHealth(() => { renderToday(); publishSummary(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { renderToday(); refreshHealth(() => { renderToday(); publishSummary(); }); }
+  });
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
